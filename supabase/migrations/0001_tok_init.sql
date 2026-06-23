@@ -174,7 +174,11 @@ begin
 
   update public.tok_pairing_codes set redeemed = true where code = p_code;
 
-  v_token := encode(gen_random_bytes(32), 'hex');
+  -- Token = 64 hex-tekens uit twee UUID's. gen_random_uuid() zit in Postgres-core
+  -- (pg_catalog, altijd op de search_path), dus dit werkt binnen search_path=public.
+  -- We vermijden bewust pgcrypto's gen_random_bytes(): die staat in Supabase in het
+  -- schema `extensions` en is hier dus niet vindbaar.
+  v_token := replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', '');
   insert into public.tok_paired_devices (device_name, pairing_token, is_owner, expires_at)
     values (coalesce(nullif(p_device_name, ''), 'Webpagina'), v_token, false, now() + interval '90 days');
 
