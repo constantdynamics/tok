@@ -1,0 +1,16 @@
+<!-- Neon "bullet-lijst": drie gekleurde stippen met witte regels (in de veilige zone). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:fillColor="#FF3CAC"
+        android:pathData="M38,40 m-7,0 a7,7 0 1,0 14,0 a7,7 0 1,0 -14,0 z" />
+    <path android:fillColor="#39FF14"
+        android:pathData="M38,54 m-7,0 a7,7 0 1,0 14,0 a7,7 0 1,0 -14,0 z" />
+    <path android:fillColor="#00E5FF"
+        android:pathData="M38,68 m-7,0 a7,7 0 1,0 14,0 a7,7 0 1,0 -14,0 z" />
+    <path android:fillColor="#F5F5FF" android:pathData="M52,37 h26 a3,3 0 0,1 0,6 h-26 z" />
+    <path android:fillColor="#F5F5FF" android:pathData="M52,51 h26 a3,3 0 0,1 0,6 h-26 z" />
+    <path android:fillColor="#F5F5FF" android:pathData="M52,65 h26 a3,3 0 0,1 0,6 h-26 z" />
+</vector>
