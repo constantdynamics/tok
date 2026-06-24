@@ -3,6 +3,7 @@ import {
   state, visibleBullets, labelsForBullet,
   addBullet, updateBulletText, setArchived, deleteBullets, reorderBullet,
   createLabel, updateLabel, deleteLabel, assignLabel, unassignLabel,
+  triageSelectedAsHandled,
 } from './store.js';
 import { createPairingCode } from './pairing.js';
 import { createDictation, speechSupported } from './speech.js';
@@ -33,6 +34,7 @@ function h(tag, props = {}, ...kids) {
 
 let editingId = null;     // bullet dat nu bewerkt wordt (re-render uitstellen)
 let pendingRender = false;
+let marqueeActive = false; // tijdens sleep-selectie de list niet opnieuw tekenen
 let sortable = null;
 let pickerCb = null;
 let toastT = null;
@@ -63,7 +65,7 @@ export function render() {
   renderFilters();
   renderBulkBar();
   if (!$('#label-modal').classList.contains('hidden')) renderLabelModal();
-  if (editingId) { pendingRender = true; return; }
+  if (editingId || marqueeActive) { pendingRender = true; return; }
   renderList();
 }
 
@@ -137,7 +139,7 @@ function onTextBlur(b, ta) {
   editingId = null;
   const v = ta.value.trim();
   if (v !== b.text) updateBulletText(b.id, v).catch(showError);
-  if (pendingRender) { pendingRender = false; renderList(); }
+  if (pendingRender && !marqueeActive) { pendingRender = false; renderList(); }
 }
 
 function labelChip(l, onRemove) {
@@ -235,7 +237,15 @@ export function initUI() {
     micBtn.title = 'Spraakherkenning wordt niet ondersteund in deze browser — gebruik Chrome of Edge.';
   } else {
     dictation = createDictation({
+      cutWord: 'tak',
+      commands: [{ re: /(kopieer|copieer|kopiëer) tekst uit bullets?/i, name: 'copyHandled' }],
       onText: (text) => { addInput.value = text; },
+      onCommit: (text) => { addBullet(text).catch(showError); }, // signaalwoord "tak"
+      onCommand: (name) => {
+        if (name === 'copyHandled') copyHandled();
+        dictation.reset();
+        addInput.value = '';
+      },
       onState: (on) => {
         micBtn.classList.toggle('listening', on);
         addInput.classList.toggle('dictating', on);
@@ -255,6 +265,8 @@ export function initUI() {
       else dictation.start(addInput.value.trim());
     });
   }
+
+  setupMarquee();
 
   $('#filter-from').addEventListener('change', (e) => { state.filters.from = e.target.value || null; render(); });
   $('#filter-to').addEventListener('change', (e) => { state.filters.to = e.target.value || null; render(); });
@@ -278,6 +290,7 @@ export function initUI() {
     if (ids.length && confirm(`${ids.length} bullet(s) definitief verwijderen?`))
       deleteBullets(ids).then(() => { state.selection.clear(); render(); }).catch(showError);
   });
+  $('#bulk-handled').addEventListener('click', copyHandled);
 
   // Modals
   $('#label-modal-close').addEventListener('click', () => $('#label-modal').classList.add('hidden'));
@@ -310,4 +323,73 @@ export function initUI() {
   const palette = $('#neon-palette');
   NEON.forEach((c) => palette.append(h('button', { class: 'swatch', style: `background:${c}`,
     title: c, onclick: () => { $('#new-label-color').value = c; } })));
+}
+
+// ============================================================================
+// SLEEP-SELECTIE (marquee): sleep met de muis een kader over de bullets
+// ============================================================================
+function setupMarquee() {
+  const list = $('#bullet-list');
+  let startX = 0, startY = 0, dragging = false, marqueeEl = null, marqueeSel = new Set();
+
+  list.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    // niet starten op knoppen/chips/checkbox/sleep-greep
+    if (e.target.closest('button, input, .chip, .chip-add, .chip-x, .drag-handle, select, a')) return;
+    startX = e.clientX; startY = e.clientY; dragging = false; marqueeSel = new Set();
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+
+  function onMove(e) {
+    if (!dragging) {
+      if (Math.abs(e.clientX - startX) < 6 && Math.abs(e.clientY - startY) < 6) return;
+      dragging = true;
+      marqueeActive = true;
+      document.body.classList.add('selecting');
+      document.activeElement?.blur?.();
+      marqueeEl = h('div', { class: 'marquee' });
+      document.body.append(marqueeEl);
+    }
+    window.getSelection()?.removeAllRanges();
+    const x1 = Math.min(startX, e.clientX), y1 = Math.min(startY, e.clientY);
+    const x2 = Math.max(startX, e.clientX), y2 = Math.max(startY, e.clientY);
+    Object.assign(marqueeEl.style, { left: `${x1}px`, top: `${y1}px`, width: `${x2 - x1}px`, height: `${y2 - y1}px` });
+    marqueeSel = new Set();
+    for (const row of list.children) {
+      const r = row.getBoundingClientRect();
+      const hit = !(r.right < x1 || r.left > x2 || r.bottom < y1 || r.top > y2);
+      row.classList.toggle('selected', hit);
+      if (hit && row.dataset.id) marqueeSel.add(row.dataset.id);
+    }
+  }
+
+  function onUp() {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    if (!dragging) return;
+    dragging = false;
+    marqueeActive = false;
+    document.body.classList.remove('selecting');
+    if (marqueeEl) { marqueeEl.remove(); marqueeEl = null; }
+    state.selection = marqueeSel;
+    if (marqueeSel.size > 0) state.selectMode = true;
+    render();
+  }
+}
+
+// ============================================================================
+// "Afgehandeld": kopieer tekst van de selectie + label 'Afgehandeld',
+// alle overige actieve bullets 'nog af te handelen'. (Knop én spraakcommando.)
+// ============================================================================
+async function copyHandled() {
+  const ids = [...state.selection];
+  if (!ids.length) { showToast('Selecteer eerst bullets (sleep eroverheen of vink aan).', 'error'); return; }
+  const texts = ids.map((id) => state.bullets.find((b) => b.id === id)?.text || '').filter(Boolean);
+  try { await navigator.clipboard.writeText(texts.join('\n')); } catch (_) { /* clipboard kan geweigerd worden */ }
+  try {
+    await triageSelectedAsHandled(ids);
+    showToast(`${ids.length}x gekopieerd + 'Afgehandeld'; de rest 'nog af te handelen'.`);
+    state.selection.clear(); state.selectMode = false; render();
+  } catch (e) { showError(e); }
 }

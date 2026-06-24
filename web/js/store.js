@@ -172,3 +172,22 @@ export async function unassignLabel(bulletIds, labelId) {
   if (error) throw error;
   notifyChanged();
 }
+
+// Zorg dat een label met deze naam bestaat; geef het id terug (maakt 'm zo nodig aan).
+export async function ensureLabel(name, color) {
+  const existing = state.labels.find(l => l.name.toLowerCase() === name.toLowerCase());
+  if (existing) return existing.id;
+  const created = await createLabel(name, color);
+  return created.id;
+}
+
+// Triage: geselecteerde bullets krijgen 'Afgehandeld'; alle overige actieve bullets
+// 'nog af te handelen'. Labels worden zo nodig aangemaakt.
+export async function triageSelectedAsHandled(selectedIds) {
+  const sel = new Set(selectedIds);
+  const handledId = await ensureLabel('Afgehandeld', '#39ff14');
+  const todoId = await ensureLabel('nog af te handelen', '#ff8e00');
+  const others = state.bullets.filter(b => !sel.has(b.id) && !b.is_archived).map(b => b.id);
+  if (selectedIds.length) await assignLabel(selectedIds, handledId);
+  if (others.length) await assignLabel(others, todoId);
+}
