@@ -5,6 +5,7 @@ import {
   createLabel, updateLabel, deleteLabel, assignLabel, unassignLabel,
 } from './store.js';
 import { createPairingCode } from './pairing.js';
+import { createDictation, speechSupported } from './speech.js';
 
 const $ = (s) => document.querySelector(s);
 
@@ -215,14 +216,45 @@ export function initUI() {
     render();
   });
 
+  let dictation = null;
   const add = () => {
     const v = $('#add-input').value.trim();
     if (!v) return;
     $('#add-input').value = '';
+    dictation?.reset(); // volgende gesproken zin begint vers
     addBullet(v).catch(showError);
   };
   $('#add-btn').addEventListener('click', add);
   $('#add-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') add(); });
+
+  // ---- Microfoon: spraak-naar-bullet (Web Speech API) ----
+  const micBtn = $('#mic-btn');
+  const addInput = $('#add-input');
+  if (!speechSupported()) {
+    micBtn.disabled = true;
+    micBtn.title = 'Spraakherkenning wordt niet ondersteund in deze browser — gebruik Chrome of Edge.';
+  } else {
+    dictation = createDictation({
+      onText: (text) => { addInput.value = text; },
+      onState: (on) => {
+        micBtn.classList.toggle('listening', on);
+        addInput.classList.toggle('dictating', on);
+        micBtn.title = on ? 'Stop met inspreken' : 'Inspreken';
+        if (on) addInput.focus();
+      },
+      onError: (err) => {
+        if (err === 'not-allowed' || err === 'service-not-allowed')
+          showToast('Geef de microfoon toestemming in je browser.', 'error');
+        else if (err === 'network')
+          showToast('Spraakherkenning vereist internet.', 'error');
+        else showToast('Spraakfout: ' + err, 'error');
+      },
+    });
+    micBtn.addEventListener('click', () => {
+      if (dictation.isListening()) dictation.stop();
+      else dictation.start(addInput.value.trim());
+    });
+  }
 
   $('#filter-from').addEventListener('change', (e) => { state.filters.from = e.target.value || null; render(); });
   $('#filter-to').addEventListener('change', (e) => { state.filters.to = e.target.value || null; render(); });

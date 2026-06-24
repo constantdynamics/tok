@@ -109,6 +109,12 @@ body {
   border-radius: 10px; padding: 11px 13px; font-size: 15px; }
 .add-input:focus { outline: none; border-color: #39ff14; box-shadow: 0 0 12px #39ff1433; }
 .add-btn { width: 46px; font-size: 22px; }
+.mic-btn { width: 46px; font-size: 18px; display: flex; align-items: center; justify-content: center; line-height: 1; }
+.mic-btn:disabled { opacity: .4; cursor: not-allowed; }
+.mic-btn.listening { border-color: var(--danger); color: #fff; background: var(--danger);
+  animation: micpulse 1.2s ease-in-out infinite; }
+@keyframes micpulse { 0%, 100% { box-shadow: 0 0 8px #ff3b6b66; } 50% { box-shadow: 0 0 22px #ff3b6bdd; } }
+.add-input.dictating { border-color: var(--danger); box-shadow: 0 0 12px #ff3b6b33; }
 
 /* ---- Bulk bar ---- */
 .bulk-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
