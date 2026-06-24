@@ -8,6 +8,7 @@ import app.tok.data.local.LabelDao
 import app.tok.data.local.LabelEntity
 import app.tok.data.prefs.TokPrefs
 import app.tok.data.remote.BulletDto
+import app.tok.data.remote.DeviceDto
 import app.tok.data.remote.LabelDto
 import app.tok.data.remote.SupabaseRest
 import app.tok.data.util.isoToMillis
@@ -56,6 +57,16 @@ class TokRepository(
     suspend fun createPairingCode(): Result<String> = runCatching {
         val token = prefs.tokenOnce() ?: error("Niet gekoppeld")
         rest.createPairingCode(token, null)
+    }
+
+    suspend fun listDevices(): Result<List<DeviceDto>> = runCatching {
+        val token = prefs.tokenOnce() ?: error("Niet gekoppeld")
+        rest.listDevices(token)
+    }
+
+    suspend fun revokeDevice(id: String): Result<Unit> = runCatching {
+        val token = prefs.tokenOnce() ?: error("Niet gekoppeld")
+        rest.revokeDevice(token, id)
     }
 
     // ------------------------------------------------------------- bullets
