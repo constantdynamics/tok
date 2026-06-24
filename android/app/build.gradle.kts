@@ -106,8 +106,8 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 
-    // Microfoon-permissie in Compose
-    implementation("com.google.accompanist:accompanist-permissions:0.34.0")
+    // Microfoon-permissie in Compose (0.36.x hoort bij Compose 1.7 / BOM 2024.09)
+    implementation("com.google.accompanist:accompanist-permissions:0.36.0")
 
     // Vosk — offline spraakherkenning
     implementation("com.alphacephei:vosk-android:0.3.47")
