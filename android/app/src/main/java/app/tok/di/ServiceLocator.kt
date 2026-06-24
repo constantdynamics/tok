@@ -3,6 +3,7 @@ package app.tok.di
 import android.content.Context
 import app.tok.data.local.TokDatabase
 import app.tok.data.prefs.TokPrefs
+import app.tok.data.remote.RealtimeClient
 import app.tok.data.remote.SupabaseRest
 import app.tok.data.repo.TokRepository
 import app.tok.speech.ModelManager
@@ -49,4 +50,5 @@ object ServiceLocator {
 
     val modelManager: ModelManager by lazy { ModelManager(appContext, httpClient, prefs) }
     val speechController: SpeechController by lazy { SpeechController(modelManager, appScope) }
+    val realtime: RealtimeClient by lazy { RealtimeClient(httpClient, appScope) { repository.triggerSync() } }
 }

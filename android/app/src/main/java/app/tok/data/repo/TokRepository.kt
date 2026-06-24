@@ -42,6 +42,9 @@ class TokRepository(
     val syncError = MutableStateFlow<String?>(null)
     val syncing = MutableStateFlow(false)
 
+    /** Wordt aangeroepen nadat lokale wijzigingen succesvol gepusht zijn (voor realtime-nudge). */
+    var onLocalPushed: (() -> Unit)? = null
+
     private val syncMutex = Mutex()
     private fun now() = System.currentTimeMillis()
 
@@ -173,11 +176,13 @@ class TokRepository(
     }
 
     private suspend fun pushLocal(token: String) {
+        var pushed = false
         // 1) labels
         val dirtyLabels = labelDao.getDirty()
         if (dirtyLabels.isNotEmpty()) {
             rest.upsertLabels(token, dirtyLabels.map { LabelDto(it.id, it.name, it.color, millisToIso(it.createdAt)) })
             dirtyLabels.forEach { labelDao.clearDirty(it.id) }
+            pushed = true
         }
         // 2) bullets + hun labelkoppelingen
         val dirtyBullets = bulletDao.getDirty()
@@ -187,17 +192,23 @@ class TokRepository(
                 rest.setBulletLabels(token, b.id, crossRefDao.forBullet(b.id).map { it.labelId })
                 bulletDao.clearDirty(b.id)
             }
+            pushed = true
         }
         // 3) verwijderingen (server cascade ruimt koppelingen op)
-        for (b in bulletDao.getDeleted()) {
+        val deletedBullets = bulletDao.getDeleted()
+        for (b in deletedBullets) {
             rest.deleteBullet(token, b.id)
             crossRefDao.clearForBullet(b.id)
             bulletDao.hardDelete(b.id)
         }
-        for (l in labelDao.getDeleted()) {
+        val deletedLabels = labelDao.getDeleted()
+        for (l in deletedLabels) {
             rest.deleteLabel(token, l.id)
             crossRefDao.clearForLabel(l.id)
             labelDao.hardDelete(l.id)
+        }
+        if (pushed || deletedBullets.isNotEmpty() || deletedLabels.isNotEmpty()) {
+            onLocalPushed?.invoke()
         }
     }
 
