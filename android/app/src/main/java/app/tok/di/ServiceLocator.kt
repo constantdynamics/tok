@@ -16,7 +16,8 @@ import java.util.concurrent.TimeUnit
 
 /** Eenvoudige handmatige DI — geen Hilt, minder bewegende delen. */
 object ServiceLocator {
-    private lateinit var appContext: Context
+    lateinit var appContext: Context
+        private set
 
     fun init(context: Context) {
         appContext = context.applicationContext
