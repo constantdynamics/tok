@@ -1,13 +1,12 @@
 package app.tok
 
 import android.app.Application
+import app.tok.di.ServiceLocator
 
-/**
- * Applicatie-entry. Houdt de [app.tok.di.ServiceLocator] in leven (wordt in de
- * datalaag-fase gevuld met database, repository en sync-planning).
- */
+/** Applicatie-entry. Initialiseert de [ServiceLocator] (database, repo, netwerk). */
 class TokApp : Application() {
     override fun onCreate() {
         super.onCreate()
+        ServiceLocator.init(this)
     }
 }
