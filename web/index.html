@@ -34,6 +34,7 @@
         </select>
         <button id="filter-btn" class="btn btn-ghost">Filter</button>
         <button id="labels-btn" class="btn btn-ghost">Labels</button>
+        <button id="device-btn" class="btn btn-ghost">Koppel</button>
         <button id="select-btn" class="btn btn-ghost">Selecteren</button>
       </div>
     </header>
@@ -109,6 +110,18 @@
         <button id="picker-close" class="icon-btn">✕</button>
       </div>
       <div id="picker-chips" class="chip-row"></div>
+    </div>
+  </div>
+
+  <!-- Apparaat koppelen modal -->
+  <div id="device-modal" class="modal-overlay hidden">
+    <div class="modal small-modal">
+      <div class="modal-head">
+        <h2>Apparaat koppelen</h2>
+        <button id="device-modal-close" class="icon-btn">✕</button>
+      </div>
+      <p class="muted">Voer deze code in op je telefoon (tok-app) of een ander apparaat. Ongeveer 10 minuten geldig.</p>
+      <p id="device-code" style="font-size:2.6rem;font-weight:800;letter-spacing:.3em;text-align:center;color:#39FF14;margin:1rem 0;">––––––</p>
     </div>
   </div>
 

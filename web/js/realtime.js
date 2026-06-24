@@ -1,28 +1,27 @@
 import { getClient } from './supabaseClient.js';
-import {
-  state, emit, upsertBullet, removeBullet, upsertLabel, removeLabel, addLink, removeLink,
-} from './store.js';
+import { loadAll } from './store.js';
 
-// Abonneer op wijzigingen in de drie datatabellen. Elke wijziging (van welk device
-// dan ook) werkt de in-memory state bij en hertekent de UI.
+// Live sync via een broadcast-"changed"-nudge. Bewust GEEN postgres_changes:
+// onze RLS gate't lezen op het pairing-token, en de realtime-RLS-check (anon-rol,
+// geen header) zou dan niets doorlaten. Een broadcast is een simpele pub/sub-nudge;
+// wie 'm ontvangt, herlaadt de data. Een poll-fallback garandeert de correctheid.
+let channel = null;
+let pollTimer = null;
+
 export function startRealtime() {
   const sb = getClient();
-  return sb
-    .channel('tok-realtime')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'tok_bullets' }, (p) => {
-      if (p.eventType === 'DELETE') removeBullet(p.old.id);
-      else upsertBullet(p.new);
-      emit();
-    })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'tok_labels' }, (p) => {
-      if (p.eventType === 'DELETE') removeLabel(p.old.id);
-      else upsertLabel(p.new);
-      emit();
-    })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'tok_bullet_labels' }, (p) => {
-      if (p.eventType === 'DELETE') removeLink(p.old);
-      else addLink(p.new);
-      emit();
-    })
+  channel = sb
+    .channel('tok-sync', { config: { broadcast: { self: false } } })
+    .on('broadcast', { event: 'changed' }, () => { loadAll().catch(() => {}); })
     .subscribe();
+
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(() => {
+    if (document.visibilityState === 'visible') loadAll().catch(() => {});
+  }, 12000);
+}
+
+// Stuur na een lokale wijziging een nudge naar de andere apparaten.
+export function notifyChanged() {
+  if (channel) channel.send({ type: 'broadcast', event: 'changed', payload: {} });
 }

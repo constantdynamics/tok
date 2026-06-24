@@ -4,6 +4,7 @@ import {
   addBullet, updateBulletText, setArchived, deleteBullets, reorderBullet,
   createLabel, updateLabel, deleteLabel, assignLabel, unassignLabel,
 } from './store.js';
+import { createPairingCode } from './pairing.js';
 
 const $ = (s) => document.querySelector(s);
 
@@ -251,6 +252,20 @@ export function initUI() {
   $('#picker-close').addEventListener('click', closePicker);
   $('#label-modal').addEventListener('click', (e) => { if (e.target.id === 'label-modal') e.target.classList.add('hidden'); });
   $('#label-picker').addEventListener('click', (e) => { if (e.target.id === 'label-picker') closePicker(); });
+
+  // Apparaat koppelen: genereer een code en toon 'm.
+  $('#device-btn').addEventListener('click', async () => {
+    $('#device-code').textContent = '…';
+    $('#device-modal').classList.remove('hidden');
+    try {
+      $('#device-code').textContent = await createPairingCode();
+    } catch (e) {
+      $('#device-modal').classList.add('hidden');
+      showError(e);
+    }
+  });
+  $('#device-modal-close').addEventListener('click', () => $('#device-modal').classList.add('hidden'));
+  $('#device-modal').addEventListener('click', (e) => { if (e.target.id === 'device-modal') e.target.classList.add('hidden'); });
 
   const newLabel = () => {
     const name = $('#new-label-name').value.trim();

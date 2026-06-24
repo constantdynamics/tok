@@ -37,3 +37,11 @@ export async function verifyToken(token) {
   const { error } = await getClient().from('tok_bullets').select('id').limit(1);
   return !error;
 }
+
+// Genereer een nieuwe 6-cijferige koppelcode (om een telefoon of ander apparaat
+// te koppelen). Vereist een geldig token; de code is ~10 minuten geldig.
+export async function createPairingCode() {
+  const { data, error } = await getClient().rpc('tok_create_pairing_code', { p_device_name: null });
+  if (error) throw error;
+  return data;
+}

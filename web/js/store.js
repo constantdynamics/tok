@@ -1,4 +1,5 @@
 import { getClient } from './supabaseClient.js';
+import { notifyChanged } from './realtime.js';
 
 // In-memory state. Mutaties werken optimistisch én via realtime; alle update-helpers
 // zijn idempotent op id, dus dubbel toepassen kan geen kwaad.
@@ -100,7 +101,7 @@ export async function addBullet(text) {
     .select()
     .single();
   if (error) throw error;
-  upsertBullet(data); emit();
+  upsertBullet(data); emit(); notifyChanged();
   return data;
 }
 
@@ -108,31 +109,35 @@ export async function updateBulletText(id, text) {
   upsertBullet({ id, text }); emit();
   const { error } = await getClient().from('tok_bullets').update({ text }).eq('id', id);
   if (error) throw error;
+  notifyChanged();
 }
 
 export async function setArchived(ids, isArchived) {
   ids.forEach(id => upsertBullet({ id, is_archived: isArchived })); emit();
   const { error } = await getClient().from('tok_bullets').update({ is_archived: isArchived }).in('id', ids);
   if (error) throw error;
+  notifyChanged();
 }
 
 export async function deleteBullets(ids) {
   ids.forEach(removeBullet); emit();
   const { error } = await getClient().from('tok_bullets').delete().in('id', ids);
   if (error) throw error;
+  notifyChanged();
 }
 
 export async function reorderBullet(id, newOrder) {
   upsertBullet({ id, sort_order: newOrder }); emit();
   const { error } = await getClient().from('tok_bullets').update({ sort_order: newOrder }).eq('id', id);
   if (error) throw error;
+  notifyChanged();
 }
 
 export async function createLabel(name, color) {
   const { data, error } = await getClient()
     .from('tok_labels').insert({ name, color }).select().single();
   if (error) throw error;
-  upsertLabel(data); emit();
+  upsertLabel(data); emit(); notifyChanged();
   return data;
 }
 
@@ -140,12 +145,14 @@ export async function updateLabel(id, fields) {
   upsertLabel({ id, ...fields }); emit();
   const { error } = await getClient().from('tok_labels').update(fields).eq('id', id);
   if (error) throw error;
+  notifyChanged();
 }
 
 export async function deleteLabel(id) {
   removeLabel(id); emit();
   const { error } = await getClient().from('tok_labels').delete().eq('id', id);
   if (error) throw error;
+  notifyChanged();
 }
 
 export async function assignLabel(bulletIds, labelId) {
@@ -155,6 +162,7 @@ export async function assignLabel(bulletIds, labelId) {
     .from('tok_bullet_labels')
     .upsert(rows, { onConflict: 'bullet_id,label_id', ignoreDuplicates: true });
   if (error) throw error;
+  notifyChanged();
 }
 
 export async function unassignLabel(bulletIds, labelId) {
@@ -162,4 +170,5 @@ export async function unassignLabel(bulletIds, labelId) {
   const { error } = await getClient()
     .from('tok_bullet_labels').delete().eq('label_id', labelId).in('bullet_id', bulletIds);
   if (error) throw error;
+  notifyChanged();
 }
