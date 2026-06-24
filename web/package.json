@@ -1,0 +1,21 @@
+{
+  "name": "tok-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Statische webpagina voor tok (spraak-naar-bullets).",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint js test",
+    "format": "prettier --check \"**/*.{js,css,html}\"",
+    "format:write": "prettier --write \"**/*.{js,css,html}\""
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.13.0",
+    "eslint": "^9.13.0",
+    "globals": "^15.11.0",
+    "prettier": "^3.3.3",
+    "vitest": "^2.1.4"
+  }
+}

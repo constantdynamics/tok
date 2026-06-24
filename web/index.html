@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0a0a12" />
+  <title>tok — bullets</title>
+  <link rel="preconnect" href="https://esm.sh" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <!-- Koppelscherm -->
+  <section id="pairing-screen" class="screen hidden">
+    <div class="pairing-card">
+      <h1 class="logo">tok</h1>
+      <p class="pairing-sub">Voer de koppelcode uit de app in.</p>
+      <input id="code-input" class="code-input" inputmode="numeric" maxlength="6"
+             autocomplete="one-time-code" placeholder="––––––" />
+      <button id="pair-btn" class="btn btn-primary">Koppelen</button>
+      <p id="pair-error" class="error-text"></p>
+    </div>
+  </section>
+
+  <!-- Hoofdscherm -->
+  <section id="app-screen" class="screen hidden">
+    <header class="topbar">
+      <span class="logo small">tok</span>
+      <div class="topbar-actions">
+        <select id="sort-select" class="select" title="Sorteren">
+          <option value="manual">Handmatig</option>
+          <option value="created_desc">Nieuwste eerst</option>
+          <option value="created_asc">Oudste eerst</option>
+          <option value="updated_desc">Laatst gewijzigd</option>
+        </select>
+        <button id="filter-btn" class="btn btn-ghost">Filter</button>
+        <button id="labels-btn" class="btn btn-ghost">Labels</button>
+        <button id="device-btn" class="btn btn-ghost">Koppel</button>
+        <button id="export-btn" class="btn btn-ghost">Export</button>
+        <button id="select-btn" class="btn btn-ghost">Selecteren</button>
+      </div>
+    </header>
+
+    <!-- Filterpaneel -->
+    <div id="filter-panel" class="filter-panel hidden">
+      <div class="filter-row">
+        <span class="filter-label">Labels</span>
+        <div id="filter-labels" class="chip-row"></div>
+      </div>
+      <div class="filter-row">
+        <span class="filter-label">Datum</span>
+        <input type="date" id="filter-from" class="date-input" />
+        <span class="dash">–</span>
+        <input type="date" id="filter-to" class="date-input" />
+      </div>
+      <div class="filter-row">
+        <span class="filter-label">Status</span>
+        <div class="seg" id="filter-archived">
+          <button data-val="active" class="seg-btn active">Actief</button>
+          <button data-val="archived" class="seg-btn">Gearchiveerd</button>
+          <button data-val="all" class="seg-btn">Alle</button>
+        </div>
+        <button id="clear-filters" class="btn btn-ghost small">Wissen</button>
+      </div>
+    </div>
+
+    <!-- Snel toevoegen -->
+    <div class="add-row">
+      <input id="add-input" class="add-input" placeholder="Nieuwe bullet toevoegen…" />
+      <button id="add-btn" class="btn btn-primary add-btn">+</button>
+    </div>
+
+    <!-- Bulk-actiebalk -->
+    <div id="bulk-bar" class="bulk-bar hidden">
+      <span id="bulk-count" class="bulk-count">0 geselecteerd</span>
+      <div class="bulk-actions">
+        <button id="bulk-select-all" class="btn btn-ghost small">Alles</button>
+        <button id="bulk-assign" class="btn btn-ghost small">+ Label</button>
+        <button id="bulk-unassign" class="btn btn-ghost small">– Label</button>
+        <button id="bulk-archive" class="btn btn-ghost small">Archiveer</button>
+        <button id="bulk-unarchive" class="btn btn-ghost small">Herstel</button>
+        <button id="bulk-delete" class="btn btn-danger small">Verwijder</button>
+      </div>
+    </div>
+
+    <main id="bullet-list" class="bullet-list"></main>
+    <p id="empty-state" class="empty-state hidden">Geen bullets om te tonen.</p>
+  </section>
+
+  <!-- Label-beheer modal -->
+  <div id="label-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-head">
+        <h2>Labels</h2>
+        <button id="label-modal-close" class="icon-btn">✕</button>
+      </div>
+      <div id="label-list" class="label-list"></div>
+      <div class="label-add">
+        <input id="new-label-name" class="add-input" placeholder="Nieuw label…" />
+        <input id="new-label-color" type="color" class="color-input" value="#39FF14" />
+        <button id="new-label-btn" class="btn btn-primary small">Toevoegen</button>
+      </div>
+      <div id="neon-palette" class="neon-palette"></div>
+    </div>
+  </div>
+
+  <!-- Label-kiezer (popover, hergebruikt) -->
+  <div id="label-picker" class="modal-overlay hidden">
+    <div class="modal small-modal">
+      <div class="modal-head">
+        <h2 id="picker-title">Kies een label</h2>
+        <button id="picker-close" class="icon-btn">✕</button>
+      </div>
+      <div id="picker-chips" class="chip-row"></div>
+    </div>
+  </div>
+
+  <!-- Apparaat koppelen modal -->
+  <div id="device-modal" class="modal-overlay hidden">
+    <div class="modal small-modal">
+      <div class="modal-head">
+        <h2>Apparaat koppelen</h2>
+        <button id="device-modal-close" class="icon-btn">✕</button>
+      </div>
+      <p class="muted">Voer deze code in op je telefoon (tok-app) of een ander apparaat. Ongeveer 10 minuten geldig.</p>
+      <p id="device-code" style="font-size:2.6rem;font-weight:800;letter-spacing:.3em;text-align:center;color:#39FF14;margin:1rem 0;">––––––</p>
+    </div>
+  </div>
+
+  <!-- Exporteren modal -->
+  <div id="export-modal" class="modal-overlay hidden">
+    <div class="modal small-modal">
+      <div class="modal-head">
+        <h2>Exporteren</h2>
+        <button id="export-modal-close" class="icon-btn">✕</button>
+      </div>
+      <p class="muted">Exporteert de huidige (gefilterde) lijst.</p>
+      <div class="chip-row">
+        <button id="export-md" class="btn btn-ghost small">Markdown</button>
+        <button id="export-json" class="btn btn-ghost small">JSON</button>
+        <button id="export-csv" class="btn btn-ghost small">CSV</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
