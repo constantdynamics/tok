@@ -7,3 +7,8 @@ local.properties
 captures/
 .externalNativeBuild/
 .kotlin/
+
+# Signing — NOOIT in git
+keystore.properties
+*.jks
+*.keystore

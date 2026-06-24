@@ -19,10 +19,10 @@ draait **volledig offline** met [Vosk](https://alphacephei.com/vosk/) (Nederland
 2. Laat Gradle synchroniseren. Android Studio zet automatisch de **Gradle-wrapper** op.
 3. Kies je toestel en druk **Run** (▶). Bij de eerste keer vraagt de app microfoon­toegang.
 
-CLI-alternatief (vereist een lokale Gradle 8.7+ om de wrapper te genereren):
+CLI-alternatief (de Gradle-wrapper is **meegeleverd**; je hebt alleen de Android SDK nodig,
+die Android Studio installeert):
 ```bash
 cd android
-gradle wrapper           # eenmalig: maakt gradlew + wrapper-jar
 ./gradlew assembleDebug   # APK in app/build/outputs/apk/debug/
 ```
 
@@ -41,11 +41,14 @@ hebt: [klein](https://alphacephei.com/vosk/models/vosk-model-small-nl-0.22.zip) 
 [groot](https://alphacephei.com/vosk/models/vosk-model-nl-0.22.zip).
 
 ## Distributie via Google Play (Internal testing)
-1. Maak een **keystore** en voeg een `signingConfig` voor `release` toe in
-   `app/build.gradle.kts` (niet meegeleverd — houd je keystore privé).
-2. `./gradlew bundleRelease` → AAB in `app/build/outputs/bundle/release/`.
-3. Upload in de **Play Console** onder **Internal testing**, voeg jezelf als tester toe.
-   `applicationId` is `app.tok` (pas aan als gewenst vóór de eerste upload).
+Release-signing is al ingebouwd (`app/build.gradle.kts` leest `keystore.properties`) en de
+Gradle-wrapper is meegeleverd. Volg het dummyproof stappenplan in **[`PLAY.md`](PLAY.md)**.
+Kort:
+1. `./make-keystore.sh` — maakt de upload-keystore + `keystore.properties` (eenmalig).
+2. `./gradlew bundleRelease` → `app/build/outputs/bundle/release/app-release.aab`.
+3. Play Console → **Internal testing** → AAB uploaden → jezelf als tester toevoegen.
+
+`applicationId` is `app.tok` (permanent na de eerste upload; pas nu aan indien gewenst).
 
 ## Architectuur
 - **UI**: Jetpack Compose (Material 3, donker neon-thema). Schermen: Opnemen, Overzicht,
