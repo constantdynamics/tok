@@ -4,9 +4,11 @@ Persoonlijke app om ingesproken gedachten als losse, gelabelde **bullets** vast 
 leggen, met **live multi-device sync** via Supabase en een met-koppelcode beveiligde
 webpagina.
 
-Dit is **Ronde 1**: de Supabase-backend + de bewerkbare webpagina. De Android-app
-(offline Vosk-spraakherkenning) volgt in **Ronde 2** — het databaseschema is daar al
-op voorbereid.
+- **Ronde 1**: de Supabase-backend + de bewerkbare webpagina (live op GitHub Pages).
+- **Ronde 2**: de Android-app met offline Vosk-spraakherkenning — zie
+  [`android/README.md`](android/README.md) voor bouwen en distributie.
+
+**Live webpagina:** https://constantdynamics.github.io/tok/
 
 ## Architectuur
 ```
@@ -26,6 +28,8 @@ Android-app (Ronde 2) ─┐                ┌─ Webpagina (web/, static)
 ## Mappen
 - `supabase/migrations/0001_tok_init.sql` — volledig schema, RLS, pairing-RPC's, realtime.
 - `web/` — statische webpagina (geen build-stap; ES-modules + CDN).
+- `android/` — de Android-app (Kotlin + Compose + Vosk). Zie `android/README.md`.
+- `.github/workflows/pages.yml` — publiceert `web/` automatisch naar GitHub Pages.
 
 ## Setup
 
@@ -41,20 +45,21 @@ export const SUPABASE_ANON_KEY = '<anon of publishable key>';
 ```
 De anon key is **publiek-by-design**; de beveiliging zit in RLS + pairing-token.
 
-### 3. Koppelen (zolang de app er nog niet is)
-Codes worden normaal door de Android-app gegenereerd. Voor nu maak je een code in de
-SQL-editor:
-```sql
-insert into public.tok_pairing_codes (code) values ('123456');
-```
-Open de webpagina, voer `123456` in → de pagina krijgt een 90-dagen pairing-token
-(cookie) en is gekoppeld.
+### 3. Koppelen
+- **Eerste keer** (nog geen enkel apparaat gekoppeld): zaai een code in de SQL-editor:
+  ```sql
+  insert into public.tok_pairing_codes (code, expires_at)
+  values ('424242', now() + interval '24 hours');
+  ```
+  Open de webpagina, voer `424242` in → de pagina krijgt een 90-dagen pairing-token
+  (cookie) en is gekoppeld.
+- **Daarna**: genereer codes vanuit een gekoppeld apparaat — op de webpagina met de knop
+  **Koppel**, of in de Android-app via Instellingen → *Nieuwe koppelcode*.
 
 ### 4. Hosten
-Statische map `web/`. Werkt op elke statische host:
-- **Netlify**: `netlify.toml` staat klaar (`publish = "web"`).
-- **Vercel**: root directory op `web` zetten, geen build command.
-- **GitHub Pages**: alleen bij een publieke repo of betaald plan (zie plan-notities).
+De webpagina staat **live op GitHub Pages** (`.github/workflows/pages.yml` publiceert
+`web/` bij elke push; repo is publiek). De map `web/` is een gewone statische site en
+werkt ook op **Netlify** (`netlify.toml` staat klaar) of **Vercel** (root op `web`).
 
 ## Functionaliteit (webpagina)
 - Bullet-overzicht met inline tekst bewerken.
@@ -67,13 +72,16 @@ Statische map `web/`. Werkt op elke statische host:
 ## Beveiligingsnotities
 - Codes zijn 6-cijferig en 10 minuten geldig (eenmalig inwisselbaar). Voor een
   single-user app met laag-gevoelige notities is dat een bewuste, lichte drempel.
-- Realtime-`postgres_changes` luistert via de anon-rol (niet per token gegated). Alle
-  **mutaties** lopen wél via de token-gegate RLS. Upgrade-pad: kortlevende JWT via een
-  Edge Function om ook realtime per token te gaten.
-- Een device intrekken: verwijder de rij uit `tok_paired_devices` → toegang direct weg.
+- **Live sync** loopt via een Realtime **broadcast**-nudge ("er is iets gewijzigd" →
+  andere apparaten herladen), met een poll-fallback. Bewust géén `postgres_changes`:
+  onze token-gebaseerde RLS laat de anon-realtime-rol niets lezen. Alle **mutaties** zijn
+  wél token-gegate. Upgrade-pad: kortlevende JWT met een `tok_paired`-claim om óók
+  per-rij realtime te kunnen gaten.
+- Een device intrekken: `tok_revoke_device(id)` of verwijder de rij uit
+  `tok_paired_devices` → toegang direct weg.
 
-## Ronde 2 — Android (gepland)
-Kotlin + Compose, Room (offline-first), WorkManager-sync, Vosk (NL) met **import én
-download** van het model. Distributie via **Google Play Internal testing** (alleen voor
-de eigenaar). Het schema (incl. `tok_create_pairing_code`, `tok_list_devices`,
-`tok_revoke_device`) ondersteunt dit nu al.
+## Ronde 2 — Android
+Kotlin + Jetpack Compose, Room (offline-first), WorkManager-sync, Vosk (NL) met een
+**gelaagd model** (klein voor directe start → groot voor nauwkeurigheid) en **import én
+download**. Distributie via **Google Play Internal testing**. Bouwen en details:
+[`android/README.md`](android/README.md).
