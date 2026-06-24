@@ -1,4 +1,4 @@
-import { readToken, verifyToken, redeemCode, clearToken } from './pairing.js';
+import { readToken, verifyToken, redeemCode, clearToken, touchToken } from './pairing.js';
 import { loadAll, subscribe } from './store.js';
 import { startRealtime } from './realtime.js';
 import { initUI, render, showToast } from './ui.js';
@@ -34,7 +34,7 @@ function showPairing(msg) {
     try {
       await redeemCode(code, 'Webpagina');
       await showApp();
-    } catch (e) {
+    } catch {
       $('#pair-error').textContent = 'Ongeldige of verlopen code.';
       btn.disabled = false;
     }
@@ -46,7 +46,7 @@ function showPairing(msg) {
 
 async function boot() {
   const token = readToken();
-  if (token && await verifyToken(token)) { await showApp(); return; }
+  if (token && await verifyToken(token)) { touchToken(); await showApp(); return; }
   if (token) clearToken();
   showPairing('');
 }

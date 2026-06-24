@@ -63,11 +63,28 @@ werkt ook op **Netlify** (`netlify.toml` staat klaar) of **Vercel** (root op `we
 
 ## Functionaliteit (webpagina)
 - Bullet-overzicht met inline tekst bewerken.
-- Multi-select + bulk-acties: label toekennen/verwijderen, archiveren, verwijderen.
+- Multi-select + bulk-acties: label toekennen/verwijderen, archiveren, verwijderen
+  (met **"Ongedaan maken"** via een toast — ook na verwijderen).
 - Drag-&-drop herordenen (handmatige sorteervolgorde).
 - Filteren op label, datum en archiefstatus (combineerbaar) + los sorteren.
 - Labelbeheer met neon-kleurkiezer.
+- **Exporteren** van de huidige (gefilterde) lijst naar Markdown / JSON / CSV.
 - Realtime: wijzigingen van elk device verschijnen binnen seconden.
+- Optimistische updates draaien automatisch terug als een server-call faalt.
+
+## Database-migraties
+- `0001_tok_init.sql` — volledig schema, RLS, pairing-RPC's, realtime.
+- `0002_tok_cleanup_and_token_refresh.sql` — opruimen van verlopen koppelcodes en
+  apparaten + token-verlenging bij gebruik (`tok_touch_token`, `last_seen_at`).
+  Pas toe op dezelfde manier als 0001 (MCP `apply_migration` of de SQL-editor).
+
+## Tests & CI
+- **Web**: `cd web && npm install && npm test` (Vitest, test de pure store-kern) en
+  `npm run lint` (ESLint) / `npm run format` (Prettier). Draait in CI via
+  `.github/workflows/web.yml`.
+- **Android**: `cd android && ./gradlew testDebugUnitTest` (JUnit, sync-merge +
+  tijd-util) en `./gradlew ktlintCheck`. Draait in CI via
+  `.github/workflows/android.yml` (tests + ktlint + `assembleDebug`).
 
 ## Beveiligingsnotities
 - Codes zijn 6-cijferig en 10 minuten geldig (eenmalig inwisselbaar). Voor een
@@ -79,6 +96,9 @@ werkt ook op **Netlify** (`netlify.toml` staat klaar) of **Vercel** (root op `we
   per-rij realtime te kunnen gaten.
 - Een device intrekken: `tok_revoke_device(id)` of verwijder de rij uit
   `tok_paired_devices` → toegang direct weg.
+- Verlopen koppelcodes en apparaten worden opportunistisch opgeruimd bij elke
+  pairing-RPC (migratie 0002), en actieve tokens worden bij gebruik automatisch
+  verlengd (`tok_touch_token`) zodat apparaten niet onverwacht ontkoppeld raken.
 
 ## Ronde 2 — Android
 Kotlin + Jetpack Compose, Room (offline-first), WorkManager-sync, Vosk (NL) met een

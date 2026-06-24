@@ -1,53 +1,19 @@
 import { getClient } from './supabaseClient.js';
 import { notifyChanged } from './realtime.js';
+import {
+  state, emit,
+  upsertBullet, removeBullet, upsertLabel, removeLabel, addLink, removeLink,
+} from './store-core.js';
 
-// In-memory state. Mutaties werken optimistisch én via realtime; alle update-helpers
-// zijn idempotent op id, dus dubbel toepassen kan geen kwaad.
-export const state = {
-  bullets: [],          // {id, text, created_at, updated_at, sort_order, is_archived}
-  labels: [],           // {id, name, color, created_at}
-  links: [],            // {bullet_id, label_id}
-  filters: { labelIds: new Set(), from: null, to: null, archived: 'active' }, // active|archived|all
-  sort: 'manual',       // manual|created_desc|created_asc|updated_desc
-  selection: new Set(),
-  selectMode: false,
-};
+// Re-export de pure kern zodat de rest van de app (ui.js, export.js, app.js) één
+// stabiel importpunt houdt: './store.js'.
+export {
+  state, subscribe, emit,
+  upsertBullet, removeBullet, upsertLabel, removeLabel, addLink, removeLink,
+  labelsForBullet, visibleBullets,
+} from './store-core.js';
 
-let onChange = () => {};
-export function subscribe(fn) { onChange = fn; }
-export function emit() { onChange(); }
-
-// ---- idempotente state-helpers (gebruikt door optimistische updates én realtime) ----
-export function upsertBullet(row) {
-  const i = state.bullets.findIndex(b => b.id === row.id);
-  if (i === -1) state.bullets.push(row); else state.bullets[i] = { ...state.bullets[i], ...row };
-}
-export function removeBullet(id) {
-  state.bullets = state.bullets.filter(b => b.id !== id);
-  state.links = state.links.filter(l => l.bullet_id !== id);
-  state.selection.delete(id);
-}
-export function upsertLabel(row) {
-  const i = state.labels.findIndex(l => l.id === row.id);
-  if (i === -1) state.labels.push(row); else state.labels[i] = { ...state.labels[i], ...row };
-}
-export function removeLabel(id) {
-  state.labels = state.labels.filter(l => l.id !== id);
-  state.links = state.links.filter(l => l.label_id !== id);
-}
-export function addLink(link) {
-  if (!state.links.some(l => l.bullet_id === link.bullet_id && l.label_id === link.label_id)) {
-    state.links.push({ bullet_id: link.bullet_id, label_id: link.label_id });
-  }
-}
-export function removeLink(link) {
-  state.links = state.links.filter(l => !(l.bullet_id === link.bullet_id && l.label_id === link.label_id));
-}
-
-export function labelsForBullet(bulletId) {
-  const ids = new Set(state.links.filter(l => l.bullet_id === bulletId).map(l => l.label_id));
-  return state.labels.filter(l => ids.has(l.id));
-}
+const linkKey = (l) => `${l.bullet_id}|${l.label_id}`;
 
 // ---- initial load ----
 export async function loadAll() {
@@ -66,32 +32,11 @@ export async function loadAll() {
   emit();
 }
 
-// ---- afgeleide lijst (filter + sort) ----
-export function visibleBullets() {
-  const f = state.filters;
-  let list = state.bullets.filter(b => {
-    if (f.archived === 'active' && b.is_archived) return false;
-    if (f.archived === 'archived' && !b.is_archived) return false;
-    if (f.from && new Date(b.created_at) < new Date(f.from)) return false;
-    if (f.to && new Date(b.created_at) > new Date(f.to + 'T23:59:59')) return false;
-    if (f.labelIds.size > 0) {
-      const own = new Set(state.links.filter(l => l.bullet_id === b.id).map(l => l.label_id));
-      // bullet moet ten minste één van de geselecteerde labels hebben
-      if (![...f.labelIds].some(id => own.has(id))) return false;
-    }
-    return true;
-  });
-  const by = {
-    manual: (a, b) => a.sort_order - b.sort_order,
-    created_desc: (a, b) => new Date(b.created_at) - new Date(a.created_at),
-    created_asc: (a, b) => new Date(a.created_at) - new Date(b.created_at),
-    updated_desc: (a, b) => new Date(b.updated_at) - new Date(a.updated_at),
-  }[state.sort];
-  return list.sort(by);
-}
-
 // ============================================================================
 // MUTATIES (optimistisch + persisteren naar Supabase)
+// ----------------------------------------------------------------------------
+// Elke mutatie past de state eerst optimistisch toe en draait die terug als de
+// server-call faalt, zodat de UI nooit blijft hangen in een onjuiste staat.
 // ============================================================================
 export async function addBullet(text) {
   const maxOrder = state.bullets.reduce((m, b) => Math.max(m, b.sort_order), 0);
@@ -106,31 +51,78 @@ export async function addBullet(text) {
 }
 
 export async function updateBulletText(id, text) {
+  const prev = state.bullets.find(b => b.id === id);
+  const old = prev ? prev.text : undefined;
   upsertBullet({ id, text }); emit();
-  const { error } = await getClient().from('tok_bullets').update({ text }).eq('id', id);
-  if (error) throw error;
-  notifyChanged();
+  try {
+    const { error } = await getClient().from('tok_bullets').update({ text }).eq('id', id);
+    if (error) throw error;
+    notifyChanged();
+  } catch (e) {
+    if (old !== undefined) { upsertBullet({ id, text: old }); emit(); }
+    throw e;
+  }
 }
 
 export async function setArchived(ids, isArchived) {
+  const prev = new Map(ids.map(id => [id, state.bullets.find(b => b.id === id)?.is_archived]));
   ids.forEach(id => upsertBullet({ id, is_archived: isArchived })); emit();
-  const { error } = await getClient().from('tok_bullets').update({ is_archived: isArchived }).in('id', ids);
-  if (error) throw error;
-  notifyChanged();
+  try {
+    const { error } = await getClient().from('tok_bullets').update({ is_archived: isArchived }).in('id', ids);
+    if (error) throw error;
+    notifyChanged();
+  } catch (e) {
+    prev.forEach((v, id) => { if (v !== undefined) upsertBullet({ id, is_archived: v }); });
+    emit();
+    throw e;
+  }
 }
 
 export async function deleteBullets(ids) {
+  const removed = state.bullets.filter(b => ids.includes(b.id)).map(b => ({ ...b }));
+  const removedLinks = state.links.filter(l => ids.includes(l.bullet_id)).map(l => ({ ...l }));
   ids.forEach(removeBullet); emit();
-  const { error } = await getClient().from('tok_bullets').delete().in('id', ids);
-  if (error) throw error;
-  notifyChanged();
+  try {
+    const { error } = await getClient().from('tok_bullets').delete().in('id', ids);
+    if (error) throw error;
+    notifyChanged();
+  } catch (e) {
+    removed.forEach(upsertBullet); removedLinks.forEach(addLink); emit();
+    throw e;
+  }
 }
 
 export async function reorderBullet(id, newOrder) {
+  const prev = state.bullets.find(b => b.id === id);
+  const old = prev ? prev.sort_order : undefined;
   upsertBullet({ id, sort_order: newOrder }); emit();
-  const { error } = await getClient().from('tok_bullets').update({ sort_order: newOrder }).eq('id', id);
-  if (error) throw error;
-  notifyChanged();
+  try {
+    const { error } = await getClient().from('tok_bullets').update({ sort_order: newOrder }).eq('id', id);
+    if (error) throw error;
+    notifyChanged();
+  } catch (e) {
+    if (old !== undefined) { upsertBullet({ id, sort_order: old }); emit(); }
+    throw e;
+  }
+}
+
+// Herstel eerder verwijderde bullets (+ hun labelkoppelingen). Voor "Ongedaan maken".
+export async function restoreBullets(bullets, links) {
+  bullets.forEach(upsertBullet); links.forEach(addLink); emit();
+  try {
+    const sb = getClient();
+    const { error: e1 } = await sb.from('tok_bullets').upsert(bullets);
+    if (e1) throw e1;
+    if (links.length) {
+      const { error: e2 } = await sb.from('tok_bullet_labels')
+        .upsert(links, { onConflict: 'bullet_id,label_id', ignoreDuplicates: true });
+      if (e2) throw e2;
+    }
+    notifyChanged();
+  } catch (e) {
+    bullets.forEach(b => removeBullet(b.id)); emit();
+    throw e;
+  }
 }
 
 export async function createLabel(name, color) {
@@ -142,33 +134,62 @@ export async function createLabel(name, color) {
 }
 
 export async function updateLabel(id, fields) {
+  const prev = state.labels.find(l => l.id === id);
+  const old = prev ? { ...prev } : undefined;
   upsertLabel({ id, ...fields }); emit();
-  const { error } = await getClient().from('tok_labels').update(fields).eq('id', id);
-  if (error) throw error;
-  notifyChanged();
+  try {
+    const { error } = await getClient().from('tok_labels').update(fields).eq('id', id);
+    if (error) throw error;
+    notifyChanged();
+  } catch (e) {
+    if (old) { upsertLabel(old); emit(); }
+    throw e;
+  }
 }
 
 export async function deleteLabel(id) {
+  const removedLabel = state.labels.find(l => l.id === id);
+  const removedLinks = state.links.filter(l => l.label_id === id).map(l => ({ ...l }));
   removeLabel(id); emit();
-  const { error } = await getClient().from('tok_labels').delete().eq('id', id);
-  if (error) throw error;
-  notifyChanged();
+  try {
+    const { error } = await getClient().from('tok_labels').delete().eq('id', id);
+    if (error) throw error;
+    notifyChanged();
+  } catch (e) {
+    if (removedLabel) upsertLabel(removedLabel);
+    removedLinks.forEach(addLink); emit();
+    throw e;
+  }
 }
 
 export async function assignLabel(bulletIds, labelId) {
   const rows = bulletIds.map(bid => ({ bullet_id: bid, label_id: labelId }));
+  const before = new Set(state.links.map(linkKey));
   rows.forEach(addLink); emit();
-  const { error } = await getClient()
-    .from('tok_bullet_labels')
-    .upsert(rows, { onConflict: 'bullet_id,label_id', ignoreDuplicates: true });
-  if (error) throw error;
-  notifyChanged();
+  try {
+    const { error } = await getClient()
+      .from('tok_bullet_labels')
+      .upsert(rows, { onConflict: 'bullet_id,label_id', ignoreDuplicates: true });
+    if (error) throw error;
+    notifyChanged();
+  } catch (e) {
+    rows.forEach(r => { if (!before.has(linkKey(r))) removeLink(r); }); emit();
+    throw e;
+  }
 }
 
 export async function unassignLabel(bulletIds, labelId) {
+  const removed = state.links
+    .filter(l => l.label_id === labelId && bulletIds.includes(l.bullet_id))
+    .map(l => ({ ...l }));
   bulletIds.forEach(bid => removeLink({ bullet_id: bid, label_id: labelId })); emit();
-  const { error } = await getClient()
-    .from('tok_bullet_labels').delete().eq('label_id', labelId).in('bullet_id', bulletIds);
-  if (error) throw error;
-  notifyChanged();
+  try {
+    const { error } = await getClient()
+      .from('tok_bullet_labels').delete().eq('label_id', labelId).in('bullet_id', bulletIds);
+    if (error) throw error;
+    notifyChanged();
+  } catch (e) {
+    removed.forEach(addLink); emit();
+    throw e;
+  }
 }

@@ -35,6 +35,7 @@
         <button id="filter-btn" class="btn btn-ghost">Filter</button>
         <button id="labels-btn" class="btn btn-ghost">Labels</button>
         <button id="device-btn" class="btn btn-ghost">Koppel</button>
+        <button id="export-btn" class="btn btn-ghost">Export</button>
         <button id="select-btn" class="btn btn-ghost">Selecteren</button>
       </div>
     </header>
@@ -122,6 +123,22 @@
       </div>
       <p class="muted">Voer deze code in op je telefoon (tok-app) of een ander apparaat. Ongeveer 10 minuten geldig.</p>
       <p id="device-code" style="font-size:2.6rem;font-weight:800;letter-spacing:.3em;text-align:center;color:#39FF14;margin:1rem 0;">––––––</p>
+    </div>
+  </div>
+
+  <!-- Exporteren modal -->
+  <div id="export-modal" class="modal-overlay hidden">
+    <div class="modal small-modal">
+      <div class="modal-head">
+        <h2>Exporteren</h2>
+        <button id="export-modal-close" class="icon-btn">✕</button>
+      </div>
+      <p class="muted">Exporteert de huidige (gefilterde) lijst.</p>
+      <div class="chip-row">
+        <button id="export-md" class="btn btn-ghost small">Markdown</button>
+        <button id="export-json" class="btn btn-ghost small">JSON</button>
+        <button id="export-csv" class="btn btn-ghost small">CSV</button>
+      </div>
     </div>
   </div>
 

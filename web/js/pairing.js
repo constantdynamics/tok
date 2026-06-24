@@ -1,4 +1,4 @@
-import { getClient, buildClient } from './supabaseClient.js';
+import { getClient, buildClient, getToken } from './supabaseClient.js';
 
 // Het pairing-token bewaren we in een cookie (geen localStorage), 90 dagen geldig.
 const COOKIE = 'tok_token';
@@ -36,6 +36,20 @@ export async function verifyToken(token) {
   buildClient(token);
   const { error } = await getClient().from('tok_bullets').select('id').limit(1);
   return !error;
+}
+
+// Verleng het huidige token bij gebruik ("touch"): de server schuift expires_at op
+// als die binnenkort verloopt, zodat actieve apparaten niet onverwacht ontkoppeld
+// raken. Best-effort: faalt dit, dan blijft het token gewoon op zijn oude datum staan.
+export async function touchToken() {
+  try {
+    const { error } = await getClient().rpc('tok_touch_token');
+    if (error) return;
+    const t = getToken();
+    if (t) saveToken(t); // verleng ook de browsercookie met 90 dagen
+  } catch {
+    /* genegeerd: token blijft geldig tot de oorspronkelijke vervaldatum */
+  }
 }
 
 // Genereer een nieuwe 6-cijferige koppelcode (om een telefoon of ander apparaat

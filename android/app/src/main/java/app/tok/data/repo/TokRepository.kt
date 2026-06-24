@@ -12,6 +12,7 @@ import app.tok.data.remote.DeviceDto
 import app.tok.data.remote.LabelDto
 import app.tok.data.remote.SupabaseRest
 import app.tok.data.util.isoToMillis
+import app.tok.sync.SyncMerge
 import app.tok.data.util.millisToIso
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -41,6 +42,9 @@ class TokRepository(
 
     val syncError = MutableStateFlow<String?>(null)
     val syncing = MutableStateFlow(false)
+
+    /** Wist de laatste sync-fout (nadat de UI 'm getoond heeft). */
+    fun clearSyncError() { syncError.value = null }
 
     /** Wordt aangeroepen nadat lokale wijzigingen succesvol gepusht zijn (voor realtime-nudge). */
     var onLocalPushed: (() -> Unit)? = null
@@ -165,6 +169,8 @@ class TokRepository(
             syncing.value = true
             pushLocal(token)
             pullRemote(token)
+            // #6: token bij gebruik verlengen (best-effort; mag de sync niet laten falen).
+            runCatching { rest.touchToken(token) }
             prefs.setLastSync(now())
             syncError.value = null
         } catch (e: Exception) {
@@ -222,12 +228,12 @@ class TokRepository(
         val serverLabelIds = serverLabels.map { it.id }.toSet()
         for (s in serverLabels) {
             val local = localLabels[s.id]
-            if (local == null || (!local.dirty && !local.deleted)) {
+            if (SyncMerge.labelServerWins(local != null, local?.dirty ?: false, local?.deleted ?: false)) {
                 labelDao.upsert(LabelEntity(s.id, s.name, s.color, isoToMillis(s.createdAt)))
             }
         }
         for (l in localLabels.values) {
-            if (l.id !in serverLabelIds && !l.dirty && !l.deleted) {
+            if (SyncMerge.shouldDeleteLocal(l.id in serverLabelIds, l.dirty, l.deleted)) {
                 crossRefDao.clearForLabel(l.id)
                 labelDao.hardDelete(l.id)
             }
@@ -238,12 +244,16 @@ class TokRepository(
         val serverBulletIds = serverBullets.map { it.id }.toSet()
         for (s in serverBullets) {
             val local = localBullets[s.id]
-            if (local == null || (!local.dirty && !local.deleted && isoToMillis(s.updatedAt) >= local.updatedAt)) {
+            if (SyncMerge.bulletServerWins(
+                    local != null, local?.dirty ?: false, local?.deleted ?: false,
+                    local?.updatedAt ?: 0L, isoToMillis(s.updatedAt),
+                )
+            ) {
                 bulletDao.upsert(s.toEntity())
             }
         }
         for (b in localBullets.values) {
-            if (b.id !in serverBulletIds && !b.dirty && !b.deleted) {
+            if (SyncMerge.shouldDeleteLocal(b.id in serverBulletIds, b.dirty, b.deleted)) {
                 crossRefDao.clearForBullet(b.id)
                 bulletDao.hardDelete(b.id)
             }

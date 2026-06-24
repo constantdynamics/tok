@@ -1,10 +1,11 @@
 import Sortable from 'https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/+esm';
 import {
   state, visibleBullets, labelsForBullet,
-  addBullet, updateBulletText, setArchived, deleteBullets, reorderBullet,
+  addBullet, updateBulletText, setArchived, deleteBullets, reorderBullet, restoreBullets,
   createLabel, updateLabel, deleteLabel, assignLabel, unassignLabel,
 } from './store.js';
 import { createPairingCode } from './pairing.js';
+import { exportMarkdown, exportJson, exportCsv } from './export.js';
 
 const $ = (s) => document.querySelector(s);
 
@@ -33,7 +34,6 @@ function h(tag, props = {}, ...kids) {
 let editingId = null;     // bullet dat nu bewerkt wordt (re-render uitstellen)
 let pendingRender = false;
 let sortable = null;
-let pickerCb = null;
 let toastT = null;
 
 const fmtDate = (iso) => {
@@ -43,12 +43,20 @@ const fmtDate = (iso) => {
 };
 const autoGrow = (ta) => { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; };
 
-export function showToast(msg, type = 'info') {
+// action (optioneel) = { label, fn } → toont een knop in de toast (bv. "Ongedaan maken").
+export function showToast(msg, type = 'info', action = null) {
   const t = $('#toast');
-  t.textContent = msg;
+  t.innerHTML = '';
+  t.append(document.createTextNode(msg));
+  if (action) {
+    t.append(h('button', {
+      class: 'toast-action',
+      onclick: () => { clearTimeout(toastT); t.classList.add('hidden'); action.fn(); },
+    }, action.label));
+  }
   t.className = 'toast ' + type;
   clearTimeout(toastT);
-  toastT = setTimeout(() => t.classList.add('hidden'), 3200);
+  toastT = setTimeout(() => t.classList.add('hidden'), action ? 6000 : 3200);
 }
 const showError = (e) => { console.error(e); showToast(e?.message || 'Er ging iets mis', 'error'); };
 
@@ -189,7 +197,6 @@ function renderLabelModal() {
 
 // ---- Label-kiezer (popover) ----
 function openPicker(title, cb) {
-  pickerCb = cb;
   $('#picker-title').textContent = title;
   const chips = $('#picker-chips');
   chips.innerHTML = '';
@@ -200,7 +207,7 @@ function openPicker(title, cb) {
       onclick: () => { cb(l.id); closePicker(); } }, h('span', { class: 'chip-dot' }), l.name));
   $('#label-picker').classList.remove('hidden');
 }
-function closePicker() { $('#label-picker').classList.add('hidden'); pickerCb = null; }
+function closePicker() { $('#label-picker').classList.add('hidden'); }
 
 // ============================================================================
 // INIT (statische handlers, één keer)
@@ -239,12 +246,35 @@ export function initUI() {
   $('#bulk-select-all').addEventListener('click', () => { visibleBullets().forEach((b) => state.selection.add(b.id)); render(); });
   $('#bulk-assign').addEventListener('click', () => { if (sel().length) openPicker('Label toekennen', (lid) => assignLabel(sel(), lid).catch(showError)); });
   $('#bulk-unassign').addEventListener('click', () => { if (sel().length) openPicker('Label verwijderen', (lid) => unassignLabel(sel(), lid).catch(showError)); });
-  $('#bulk-archive').addEventListener('click', () => { if (sel().length) setArchived(sel(), true).then(() => { state.selection.clear(); render(); }).catch(showError); });
-  $('#bulk-unarchive').addEventListener('click', () => { if (sel().length) setArchived(sel(), false).then(() => { state.selection.clear(); render(); }).catch(showError); });
+  $('#bulk-archive').addEventListener('click', () => {
+    const ids = sel();
+    if (!ids.length) return;
+    setArchived(ids, true).then(() => {
+      state.selection.clear(); render();
+      showToast(`${ids.length} gearchiveerd`, 'info',
+        { label: 'Ongedaan maken', fn: () => setArchived(ids, false).catch(showError) });
+    }).catch(showError);
+  });
+  $('#bulk-unarchive').addEventListener('click', () => {
+    const ids = sel();
+    if (!ids.length) return;
+    setArchived(ids, false).then(() => {
+      state.selection.clear(); render();
+      showToast(`${ids.length} hersteld`, 'info',
+        { label: 'Ongedaan maken', fn: () => setArchived(ids, true).catch(showError) });
+    }).catch(showError);
+  });
   $('#bulk-delete').addEventListener('click', () => {
     const ids = sel();
-    if (ids.length && confirm(`${ids.length} bullet(s) definitief verwijderen?`))
-      deleteBullets(ids).then(() => { state.selection.clear(); render(); }).catch(showError);
+    if (!ids.length) return;
+    // Snapshot vóór verwijderen, zodat "Ongedaan maken" alles (incl. labels) kan herstellen.
+    const removed = state.bullets.filter((b) => ids.includes(b.id)).map((b) => ({ ...b }));
+    const removedLinks = state.links.filter((l) => ids.includes(l.bullet_id)).map((l) => ({ ...l }));
+    deleteBullets(ids).then(() => {
+      state.selection.clear(); render();
+      showToast(`${ids.length} verwijderd`, 'info',
+        { label: 'Ongedaan maken', fn: () => restoreBullets(removed, removedLinks).catch(showError) });
+    }).catch(showError);
   });
 
   // Modals
@@ -266,6 +296,15 @@ export function initUI() {
   });
   $('#device-modal-close').addEventListener('click', () => $('#device-modal').classList.add('hidden'));
   $('#device-modal').addEventListener('click', (e) => { if (e.target.id === 'device-modal') e.target.classList.add('hidden'); });
+
+  // Exporteren (huidige, gefilterde lijst) naar Markdown / JSON / CSV.
+  const closeExport = () => $('#export-modal').classList.add('hidden');
+  $('#export-btn').addEventListener('click', () => $('#export-modal').classList.remove('hidden'));
+  $('#export-modal-close').addEventListener('click', closeExport);
+  $('#export-modal').addEventListener('click', (e) => { if (e.target.id === 'export-modal') closeExport(); });
+  $('#export-md').addEventListener('click', () => { exportMarkdown(); closeExport(); });
+  $('#export-json').addEventListener('click', () => { exportJson(); closeExport(); });
+  $('#export-csv').addEventListener('click', () => { exportCsv(); closeExport(); });
 
   const newLabel = () => {
     const name = $('#new-label-name').value.trim();

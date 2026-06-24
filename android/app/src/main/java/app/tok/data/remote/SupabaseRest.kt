@@ -69,6 +69,15 @@ class SupabaseRest(
         return json.decodeFromString(ListSerializer(DeviceDto.serializer()), execute(req))
     }
 
+    /** Verleng het token bij gebruik (#6); server schuift expires_at op indien nodig. */
+    suspend fun touchToken(token: String) {
+        val req = builder("${SupabaseConfig.REST_URL}/rpc/tok_touch_token", token)
+            .header("Content-Type", "application/json")
+            .post("{}".toRequestBody(jsonMedia))
+            .build()
+        execute(req)
+    }
+
     suspend fun revokeDevice(token: String, id: String) {
         val payload = json.encodeToString(RpcRevoke.serializer(), RpcRevoke(id))
         val req = builder("${SupabaseConfig.REST_URL}/rpc/tok_revoke_device", token)

@@ -1,0 +1,39 @@
+name: Android CI
+
+on:
+  push:
+    paths: ['android/**', '.github/workflows/android.yml']
+  pull_request:
+    paths: ['android/**', '.github/workflows/android.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: JDK 17 instellen
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Gradle instellen (met cache)
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Unit-tests
+        run: ./gradlew testDebugUnitTest
+
+      - name: ktlint (stijlcheck, niet-blokkerend)
+        run: ./gradlew ktlintCheck
+        continue-on-error: true
+
+      - name: Debug-APK bouwen
+        run: ./gradlew assembleDebug
