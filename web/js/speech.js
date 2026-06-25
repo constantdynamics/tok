@@ -6,17 +6,43 @@ export function speechSupported() {
   return !!SR;
 }
 
+function escapeRe(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Gesproken leestekens -> echte tekens. "dubbele punt"/"puntkomma" vóór "punt".
+function applyPunctuation(text) {
+  let t = text;
+  const rules = [
+    [/\bnieuwe alinea\b/gi, '\n\n'],
+    [/\bnieuwe regel\b/gi, '\n'],
+    [/\bvraagteken\b/gi, '?'],
+    [/\buitroepteken\b/gi, '!'],
+    [/\bpuntkomma\b/gi, ';'],
+    [/\bdubbele punt\b/gi, ':'],
+    [/\bkomma\b/gi, ','],
+    [/\bpunt\b/gi, '.'],
+  ];
+  for (const [re, rep] of rules) t = t.replace(re, rep);
+  t = t.replace(/\s+([.,!?;:])/g, '$1');     // geen spatie vóór een leesteken
+  t = t.replace(/[ \t]*\n[ \t]*/g, '\n');    // spaties rond nieuwe regels weg
+  t = t.replace(/[ \t]{2,}/g, ' ');
+  return t.trim();
+}
+
+// Hoofdletter aan het begin en na . ! ? of een nieuwe regel.
+function capitalizeSentences(text) {
+  return text.replace(/(^|[.!?]\s+|\n[ \t]*)([a-zà-öø-ÿ])/g, (m, p, c) => p + c.toUpperCase());
+}
+
 // Maakt een dictation-controller.
-//   onText(text)   – live tekst (vastgezette zinnen + lopende partial)
-//   onCommit(text) – een afgeronde bullet (door het signaalwoord, bv. "tak")
-//   onCommand(name)– een herkend spraakcommando
-//   onState(on)    – luisteren aan/uit
-//   onError(code)  – foutcode (bv. 'not-allowed', 'network')
-//   cutWord        – signaalwoord dat het transcript-tot-nu-toe afkapt tot een bullet
-//   commands       – [{ re: RegExp, name: string }] commandozinnen (verwijderd uit de tekst)
+//   onText/onCommit/onCommand/onState/onError – callbacks
+//   cutWords  – lijst signaalwoorden/-zinnen die de tekst-tot-nu-toe afkappen tot bullet
+//   commands  – [{ re, name }] commandozinnen (verwijderd uit de tekst)
+//   punctuation – gesproken leestekens omzetten + hoofdletters (default aan)
 export function createDictation({
   onText, onCommit, onCommand, onState, onError,
-  lang = 'nl-NL', cutWord = 'tak', commands = [],
+  lang = 'nl-NL', cutWords = ['tak'], commands = [], punctuation = true,
 }) {
   if (!SR) return null;
 
@@ -26,18 +52,21 @@ export function createDictation({
   rec.interimResults = true;
 
   let listening = false;
-  let base = ''; // vastgezette tekst (finals) sinds de laatste start/reset/commit
-  const cutRe = cutWord ? new RegExp(`\\b${cutWord}\\b`, 'i') : null;
+  let base = '';
+  const cutRe = (cutWords && cutWords.length)
+    ? new RegExp(`\\b(?:${cutWords.map(escapeRe).join('|')})\\b`, 'i')
+    : null;
 
   function processFinals() {
-    // 1) commando's: detecteer en verwijder de commandozin uit de tekst
+    if (punctuation) base = capitalizeSentences(applyPunctuation(base));
+    // 1) commando's: detecteer en verwijder de commandozin
     for (const c of commands) {
       if (c.re.test(base)) {
         base = base.replace(c.re, ' ').replace(/\s+/g, ' ').trim();
         onCommand?.(c.name);
       }
     }
-    // 2) signaalwoord: alles vóór elk voorkomen wordt een aparte bullet
+    // 2) signaalwoorden: alles vóór elk voorkomen wordt een aparte bullet
     if (cutRe) {
       while (cutRe.test(base)) {
         const idx = base.search(cutRe);

@@ -88,8 +88,6 @@ const showError = (e) => { console.error(e); showToast(e?.message || 'Er ging ie
 // ============================================================================
 export function render() {
   $('#sort-select').value = state.sort;
-  $('#select-btn').textContent = state.selectMode ? 'Klaar' : 'Selecteren';
-  $('#select-btn').classList.toggle('active', state.selectMode);
   renderFilters();
   renderBulkBar();
   if (!$('#label-modal').classList.contains('hidden')) renderLabelModal();
@@ -120,7 +118,7 @@ function renderList() {
 
 function setupSortable() {
   if (sortable) { sortable.destroy(); sortable = null; }
-  if (state.sort !== 'manual' || state.selectMode) return;
+  if (state.sort !== 'manual') return;
   sortable = new Sortable($('#bullet-list'), {
     handle: '.drag-handle', draggable: '.bullet', animation: 150, onEnd: onDragEnd,
   });
@@ -143,7 +141,7 @@ async function onDragEnd(evt) {
 function renderBullet(b) {
   const selected = state.selection.has(b.id);
   const chips = labelsForBullet(b.id).map((l) =>
-    labelChip(l, state.selectMode ? null : () => unassignLabel([b.id], l.id).catch(showError)));
+    labelChip(l, () => unassignLabel([b.id], l.id).catch(showError)));
 
   const ta = h('textarea', {
     class: 'bullet-text', rows: 1,
@@ -154,24 +152,19 @@ function renderBullet(b) {
   ta.value = b.text;
 
   const row = h('div', { class: `bullet${selected ? ' selected' : ''}${b.is_archived ? ' archived' : ''}`, dataset: { id: b.id } },
-    state.sort === 'manual' && !state.selectMode ? h('span', { class: 'drag-handle', title: 'Sleep om te herordenen' }, '⠿') : null,
-    state.selectMode ? h('input', { type: 'checkbox', class: 'check', checked: selected, onchange: () => toggleSelect(b.id) }) : null,
+    h('input', { type: 'checkbox', class: 'check', checked: selected, onchange: () => toggleSelect(b.id) }),
     h('div', { class: 'bullet-main' },
       ta,
       h('div', { class: 'bullet-meta' },
         h('div', { class: 'chips' }, ...chips,
-          !state.selectMode ? h('button', { class: 'chip-add', title: 'Label toevoegen',
-            onclick: () => openPicker('Label toevoegen', (lid) => assignLabel([b.id], lid).catch(showError)) }, '+') : null),
+          h('button', { class: 'chip-add', title: 'Label toevoegen',
+            onclick: () => openPicker('Label toevoegen', (lid) => assignLabel([b.id], lid).catch(showError)) }, '+')),
         h('span', { class: 'date' }, fmtDate(b.created_at)),
       ),
     ),
+    state.sort === 'manual' ? h('span', { class: 'drag-handle', title: 'Sleep om te herordenen' }, '⠿') : null,
   );
   requestAnimationFrame(() => autoGrow(ta));
-  if (state.selectMode) {
-    row.addEventListener('click', (e) => {
-      if (e.target.tagName !== 'TEXTAREA' && e.target.type !== 'checkbox') toggleSelect(b.id);
-    });
-  }
   return row;
 }
 
@@ -194,7 +187,7 @@ function toggleSelect(id) {
 }
 
 function renderBulkBar() {
-  $('#bulk-bar').classList.toggle('hidden', !state.selectMode);
+  $('#bulk-bar').classList.toggle('hidden', state.selection.size === 0);
   $('#bulk-count').textContent = `${state.selection.size} geselecteerd`;
 }
 
@@ -252,11 +245,6 @@ export function initUI() {
   $('#sort-select').addEventListener('change', (e) => { state.sort = e.target.value; render(); });
   $('#filter-btn').addEventListener('click', () => $('#filter-panel').classList.toggle('hidden'));
   $('#labels-btn').addEventListener('click', () => { renderLabelModal(); $('#label-modal').classList.remove('hidden'); });
-  $('#select-btn').addEventListener('click', () => {
-    state.selectMode = !state.selectMode;
-    if (!state.selectMode) state.selection.clear();
-    render();
-  });
 
   let dictation = null;
   const addInput = $('#add-input');
@@ -292,7 +280,7 @@ export function initUI() {
     micBtn.title = 'Spraakherkenning wordt niet ondersteund in deze browser — gebruik Chrome of Edge.';
   } else {
     dictation = createDictation({
-      cutWord: 'tak',
+      cutWords: ['tak', 'finito', 'ok stop maar', 'oké stop maar', 'okay stop maar'],
       commands: [{ re: /(kopieer|copieer|kopiëer) tekst uit bullets?/i, name: 'copyHandled' }],
       onText: (text) => { addInput.value = text; autosizeBig(addInput); saveDraft(); },
       onCommit: (text) => { addBullet(text).catch((e) => { restoreDraft(text); showError(e); }); }, // "tak"
@@ -338,6 +326,7 @@ export function initUI() {
   // Bulk-acties
   const sel = () => [...state.selection];
   $('#bulk-select-all').addEventListener('click', () => { visibleBullets().forEach((b) => state.selection.add(b.id)); render(); });
+  $('#bulk-clear').addEventListener('click', () => { state.selection.clear(); render(); });
   $('#bulk-assign').addEventListener('click', () => { if (sel().length) openPicker('Label toekennen', (lid) => assignLabel(sel(), lid).catch(showError)); });
   $('#bulk-unassign').addEventListener('click', () => { if (sel().length) openPicker('Label verwijderen', (lid) => unassignLabel(sel(), lid).catch(showError)); });
   $('#bulk-archive').addEventListener('click', () => { if (sel().length) setArchived(sel(), true).then(() => { state.selection.clear(); render(); }).catch(showError); });
@@ -431,7 +420,6 @@ function setupMarquee() {
     document.body.classList.remove('selecting');
     if (marqueeEl) { marqueeEl.remove(); marqueeEl = null; }
     state.selection = marqueeSel;
-    if (marqueeSel.size > 0) state.selectMode = true;
     render();
   }
 }

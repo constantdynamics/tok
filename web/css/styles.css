@@ -180,3 +180,7 @@ body {
   border: 1px solid #00f0ff; background: #00f0ff22; border-radius: 4px; }
 body.selecting { cursor: crosshair; }
 body.selecting, body.selecting * { user-select: none !important; }
+
+/* ---- Versie-voettekst ---- */
+.appfoot { text-align: center; color: var(--muted); font-size: 11px; opacity: .65;
+  padding: 22px 0 28px; letter-spacing: .5px; }
