@@ -46,6 +46,34 @@ const fmtDate = (iso) => {
 };
 const autoGrow = (ta) => { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; };
 
+// Groot invoerveld: groeit mee in hoogte en verkleint de tekst zodat zeer lange
+// punten (2000+ woorden) in één keer passen. De inhoud zelf wordt nooit afgekapt.
+function autosizeBig(ta) {
+  const maxH = Math.max(120, Math.round(window.innerHeight * 0.45));
+  ta.style.fontSize = '';
+  let fs = parseFloat(getComputedStyle(ta).fontSize) || 15;
+  ta.style.height = 'auto';
+  let guard = 48;
+  while (ta.scrollHeight > maxH && fs > 9 && guard-- > 0) {
+    fs -= 1;
+    ta.style.fontSize = fs + 'px';
+    ta.style.height = 'auto';
+  }
+  ta.style.height = Math.min(ta.scrollHeight, maxH) + 'px';
+  ta.style.overflowY = ta.scrollHeight > maxH ? 'auto' : 'hidden';
+}
+
+// Concept-tekst direct bewaren zodat ingesproken/getypte tekst nooit verdwijnt
+// bij een fout of herladen.
+const DRAFT_KEY = 'tok_draft';
+function saveDraft() { try { localStorage.setItem(DRAFT_KEY, $('#add-input').value); } catch (_) {} }
+function restoreDraft(text) {
+  const ta = $('#add-input');
+  ta.value = ta.value ? `${text}\n${ta.value}` : text;
+  saveDraft();
+  autosizeBig(ta);
+}
+
 export function showToast(msg, type = 'info') {
   const t = $('#toast');
   t.textContent = msg;
@@ -74,7 +102,19 @@ function renderList() {
   list.innerHTML = '';
   const items = visibleBullets();
   $('#empty-state').classList.toggle('hidden', items.length > 0);
-  items.forEach((b) => list.append(renderBullet(b)));
+
+  // Afgehandelde bullets onderaan, onder een grote "Afgehandeld"-streep.
+  const handledLabel = state.labels.find((l) => l.name.toLowerCase() === 'afgehandeld');
+  const hid = handledLabel?.id;
+  const isDone = (b) => hid && state.links.some((l) => l.bullet_id === b.id && l.label_id === hid);
+  const open = items.filter((b) => !isDone(b));
+  const done = items.filter((b) => isDone(b));
+
+  open.forEach((b) => list.append(renderBullet(b)));
+  if (done.length) {
+    list.append(h('div', { class: 'done-divider' }, h('span', {}, 'Afgehandeld')));
+    done.forEach((b) => list.append(renderBullet(b)));
+  }
   setupSortable();
 }
 
@@ -82,13 +122,13 @@ function setupSortable() {
   if (sortable) { sortable.destroy(); sortable = null; }
   if (state.sort !== 'manual' || state.selectMode) return;
   sortable = new Sortable($('#bullet-list'), {
-    handle: '.drag-handle', animation: 150, onEnd: onDragEnd,
+    handle: '.drag-handle', draggable: '.bullet', animation: 150, onEnd: onDragEnd,
   });
 }
 
 async function onDragEnd(evt) {
   const id = evt.item.dataset.id;
-  const rows = [...$('#bullet-list').children];
+  const rows = [...$('#bullet-list').querySelectorAll('.bullet')];
   const idx = rows.indexOf(evt.item);
   const orderOf = (el) => state.bullets.find((b) => b.id === el?.dataset.id)?.sort_order ?? 0;
   const prev = rows[idx - 1], next = rows[idx + 1];
@@ -219,19 +259,34 @@ export function initUI() {
   });
 
   let dictation = null;
+  const addInput = $('#add-input');
+
   const add = () => {
-    const v = $('#add-input').value.trim();
+    const v = addInput.value.trim();
     if (!v) return;
-    $('#add-input').value = '';
-    dictation?.reset(); // volgende gesproken zin begint vers
-    addBullet(v).catch(showError);
+    addInput.value = '';
+    autosizeBig(addInput);
+    dictation?.reset();
+    saveDraft();
+    // Mislukt de opslag? Zet de tekst terug zodat 'ie niet verloren gaat.
+    addBullet(v).catch((e) => { restoreDraft(v); showError(e); });
   };
   $('#add-btn').addEventListener('click', add);
-  $('#add-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') add(); });
+  // Enter = nieuwe regel (voor lange punten); Ctrl/⌘+Enter = toevoegen.
+  addInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); add(); }
+  });
+  addInput.addEventListener('input', () => { autosizeBig(addInput); saveDraft(); });
+
+  // Herstel een eerder ingesproken/getypte concept-tekst (overleeft fouten/herladen).
+  try {
+    const draft = localStorage.getItem(DRAFT_KEY);
+    if (draft) addInput.value = draft;
+  } catch (_) {}
+  autosizeBig(addInput);
 
   // ---- Microfoon: spraak-naar-bullet (Web Speech API) ----
   const micBtn = $('#mic-btn');
-  const addInput = $('#add-input');
   if (!speechSupported()) {
     micBtn.disabled = true;
     micBtn.title = 'Spraakherkenning wordt niet ondersteund in deze browser — gebruik Chrome of Edge.';
@@ -239,12 +294,14 @@ export function initUI() {
     dictation = createDictation({
       cutWord: 'tak',
       commands: [{ re: /(kopieer|copieer|kopiëer) tekst uit bullets?/i, name: 'copyHandled' }],
-      onText: (text) => { addInput.value = text; },
-      onCommit: (text) => { addBullet(text).catch(showError); }, // signaalwoord "tak"
+      onText: (text) => { addInput.value = text; autosizeBig(addInput); saveDraft(); },
+      onCommit: (text) => { addBullet(text).catch((e) => { restoreDraft(text); showError(e); }); }, // "tak"
       onCommand: (name) => {
         if (name === 'copyHandled') copyHandled();
         dictation.reset();
         addInput.value = '';
+        autosizeBig(addInput);
+        saveDraft();
       },
       onState: (on) => {
         micBtn.classList.toggle('listening', on);
@@ -356,7 +413,7 @@ function setupMarquee() {
     const x2 = Math.max(startX, e.clientX), y2 = Math.max(startY, e.clientY);
     Object.assign(marqueeEl.style, { left: `${x1}px`, top: `${y1}px`, width: `${x2 - x1}px`, height: `${y2 - y1}px` });
     marqueeSel = new Set();
-    for (const row of list.children) {
+    for (const row of list.querySelectorAll('.bullet')) {
       const r = row.getBoundingClientRect();
       const hit = !(r.right < x1 || r.left > x2 || r.bottom < y1 || r.top > y2);
       row.classList.toggle('selected', hit);

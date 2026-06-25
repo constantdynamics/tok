@@ -104,12 +104,13 @@ body {
 .chip-add:hover { color: var(--text); border-color: #4a4a6a; }
 
 /* ---- Add row ---- */
-.add-row { display: flex; gap: 8px; margin-bottom: 12px; }
-.add-input { flex: 1; background: var(--surface-solid); color: var(--text); border: 1px solid var(--line);
-  border-radius: 10px; padding: 11px 13px; font-size: 15px; }
+.add-row { display: flex; gap: 8px; margin-bottom: 12px; align-items: flex-end; }
+.add-input { flex: 1; min-width: 0; background: var(--surface-solid); color: var(--text); border: 1px solid var(--line);
+  border-radius: 10px; padding: 11px 13px; font-size: 15px; line-height: 1.45;
+  font-family: inherit; resize: none; overflow-y: hidden; }
 .add-input:focus { outline: none; border-color: #39ff14; box-shadow: 0 0 12px #39ff1433; }
-.add-btn { width: 46px; font-size: 22px; }
-.mic-btn { width: 46px; font-size: 18px; display: flex; align-items: center; justify-content: center; line-height: 1; }
+.add-btn { width: 46px; font-size: 22px; flex: 0 0 auto; }
+.mic-btn { width: 46px; font-size: 18px; display: flex; align-items: center; justify-content: center; line-height: 1; flex: 0 0 auto; }
 .mic-btn:disabled { opacity: .4; cursor: not-allowed; }
 .mic-btn.listening { border-color: var(--danger); color: #fff; background: var(--danger);
   animation: micpulse 1.2s ease-in-out infinite; }
@@ -139,6 +140,14 @@ body {
 .bullet-meta .chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .date { color: var(--muted); font-size: 11px; white-space: nowrap; }
 .empty-state { text-align: center; color: var(--muted); padding: 40px; }
+
+/* ---- "Afgehandeld"-scheidingslijn ---- */
+.done-divider { display: flex; align-items: center; gap: 12px; margin: 22px 2px 8px;
+  color: #39ff14; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; }
+.done-divider span { white-space: nowrap; text-shadow: 0 0 12px #39ff1466; }
+.done-divider::before, .done-divider::after { content: ''; height: 2px; flex: 1; border-radius: 2px;
+  background: linear-gradient(90deg, transparent, #39ff14aa); }
+.done-divider::after { background: linear-gradient(90deg, #39ff14aa, transparent); }
 
 /* ---- Modals ---- */
 .modal-overlay { position: fixed; inset: 0; background: #05050acc; display: flex; align-items: center;
