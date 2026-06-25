@@ -348,6 +348,7 @@ export function initUI() {
       deleteBullets(ids).then(() => { state.selection.clear(); render(); }).catch(showError);
   });
   $('#bulk-handled').addEventListener('click', copyHandled);
+  $('#bulk-copy').addEventListener('click', copySelectedText);
 
   // Modals
   $('#label-modal-close').addEventListener('click', () => $('#label-modal').classList.add('hidden'));
@@ -436,14 +437,42 @@ function setupMarquee() {
 }
 
 // ============================================================================
-// "Afgehandeld": kopieer tekst van de selectie + label 'Afgehandeld',
-// alle overige actieve bullets 'nog af te handelen'. (Knop én spraakcommando.)
+// Kopiëren / "Afgehandeld"
 // ============================================================================
+// Tekst van de geselecteerde bullets, in de volgorde zoals getoond.
+function selectedTexts() {
+  return visibleBullets().filter((b) => state.selection.has(b.id)).map((b) => b.text).filter(Boolean);
+}
+
+async function copyToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (_) {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.append(ta); ta.select();
+      const ok = document.execCommand('copy');
+      ta.remove();
+      return ok;
+    } catch (_) { return false; }
+  }
+}
+
+// Kopieer alleen de tekst van de huidige selectie (zonder iets te wijzigen).
+async function copySelectedText() {
+  if (!state.selection.size) { showToast('Selecteer eerst bullets.', 'error'); return; }
+  const texts = selectedTexts();
+  const ok = await copyToClipboard(texts.join('\n\n'));
+  showToast(ok ? `${texts.length} bullet(s) gekopieerd.` : 'Kopiëren mislukt.', ok ? 'info' : 'error');
+}
+
+// "Afgehandeld": kopieer tekst + label de selectie 'Afgehandeld', de rest 'nog af te handelen'.
 async function copyHandled() {
   const ids = [...state.selection];
   if (!ids.length) { showToast('Selecteer eerst bullets (sleep eroverheen of vink aan).', 'error'); return; }
-  const texts = ids.map((id) => state.bullets.find((b) => b.id === id)?.text || '').filter(Boolean);
-  try { await navigator.clipboard.writeText(texts.join('\n')); } catch (_) { /* clipboard kan geweigerd worden */ }
+  await copyToClipboard(selectedTexts().join('\n\n'));
   try {
     await triageSelectedAsHandled(ids);
     showToast(`${ids.length}x gekopieerd + 'Afgehandeld'; de rest 'nog af te handelen'.`);
