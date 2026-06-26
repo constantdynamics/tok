@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0a0a12" />
+  <title>tok — bullets</title>
+  <link rel="preconnect" href="https://esm.sh" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <!-- Eigen icoonset (neon-lijnstijl) -->
+  <svg class="ic-sprite" aria-hidden="true">
+    <symbol id="ic-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></symbol>
+    <symbol id="ic-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="ic-filter" viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></symbol>
+    <symbol id="ic-tag" viewBox="0 0 24 24"><path d="M4 4h7l9 9-7 7-9-9z"/><path d="M8 8h.01"/></symbol>
+    <symbol id="ic-link" viewBox="0 0 24 24"><path d="M10 13a4 4 0 0 0 5.66 0l2.34-2.34a4 4 0 0 0-5.66-5.66l-1 1"/><path d="M14 11a4 4 0 0 0-5.66 0L6 13.34a4 4 0 0 0 5.66 5.66l1-1"/></symbol>
+    <symbol id="ic-check" viewBox="0 0 24 24"><path d="M5 13l4 4 10-11"/></symbol>
+    <symbol id="ic-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></symbol>
+    <symbol id="ic-archive" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9"/><path d="M10 13h4"/></symbol>
+    <symbol id="ic-restore" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9"/><path d="M12 19v-7M9.5 14.5 12 12l2.5 2.5"/></symbol>
+    <symbol id="ic-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 7V4h4v3M6 7l1 13h10l1-13"/></symbol>
+    <symbol id="ic-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="ic-all" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12l3 3 5-6"/></symbol>
+    <symbol id="ic-grip" viewBox="0 0 24 24"><path d="M9 5v14M15 5v14"/></symbol>
+  </svg>
+
+  <!-- Koppelscherm -->
+  <section id="pairing-screen" class="screen hidden">
+    <div class="pairing-card">
+      <h1 class="logo">tok</h1>
+      <p class="pairing-sub">Voer de koppelcode uit de app in.</p>
+      <input id="code-input" class="code-input" inputmode="numeric" maxlength="6"
+             autocomplete="one-time-code" placeholder="––––––" />
+      <button id="pair-btn" class="btn btn-primary">Koppelen</button>
+      <p id="pair-error" class="error-text"></p>
+    </div>
+  </section>
+
+  <!-- Hoofdscherm -->
+  <section id="app-screen" class="screen hidden">
+    <!-- Vaste kop: blijft in beeld bij scrollen -->
+    <div class="apphead">
+      <header class="topbar">
+        <span class="logo small">tok</span>
+        <div class="topbar-actions">
+          <select id="sort-select" class="select" title="Sorteren">
+            <option value="manual">Handmatig</option>
+            <option value="created_desc">Nieuwste eerst</option>
+            <option value="created_asc">Oudste eerst</option>
+            <option value="updated_desc">Laatst gewijzigd</option>
+          </select>
+          <button id="filter-btn" class="btn btn-ghost"><svg class="ic"><use href="#ic-filter"/></svg>Filter</button>
+          <button id="labels-btn" class="btn btn-ghost"><svg class="ic"><use href="#ic-tag"/></svg>Labels</button>
+          <button id="device-btn" class="btn btn-ghost"><svg class="ic"><use href="#ic-link"/></svg>Koppel</button>
+        </div>
+      </header>
+
+      <!-- Filterpaneel -->
+      <div id="filter-panel" class="filter-panel hidden">
+        <div class="filter-row">
+          <span class="filter-label">Labels</span>
+          <div id="filter-labels" class="chip-row"></div>
+        </div>
+        <div class="filter-row">
+          <span class="filter-label">Datum</span>
+          <input type="date" id="filter-from" class="date-input" />
+          <span class="dash">–</span>
+          <input type="date" id="filter-to" class="date-input" />
+        </div>
+        <div class="filter-row">
+          <span class="filter-label">Status</span>
+          <div class="seg" id="filter-archived">
+            <button data-val="active" class="seg-btn active">Actief</button>
+            <button data-val="archived" class="seg-btn">Gearchiveerd</button>
+            <button data-val="all" class="seg-btn">Alle</button>
+          </div>
+          <button id="clear-filters" class="btn btn-ghost small">Wissen</button>
+        </div>
+      </div>
+
+      <!-- Snel toevoegen -->
+      <div class="add-row">
+        <button id="mic-btn" class="btn mic-btn" title="Inspreken"><svg class="ic ic-lg"><use href="#ic-mic"/></svg></button>
+        <textarea id="add-input" class="add-input" rows="1" placeholder="Typ of spreek je bullet in…"></textarea>
+        <button id="add-btn" class="btn btn-primary add-btn"><svg class="ic ic-lg"><use href="#ic-plus"/></svg></button>
+      </div>
+
+      <!-- Bulk-actiebalk -->
+      <div id="bulk-bar" class="bulk-bar hidden">
+        <span id="bulk-count" class="bulk-count">0 geselecteerd</span>
+        <div class="bulk-actions">
+          <button id="bulk-select-all" class="btn btn-ghost small"><svg class="ic"><use href="#ic-all"/></svg>Alles</button>
+          <button id="bulk-clear" class="btn btn-ghost small"><svg class="ic"><use href="#ic-x"/></svg>Deselecteer</button>
+          <button id="bulk-assign" class="btn btn-ghost small"><svg class="ic"><use href="#ic-tag"/></svg>+ Label</button>
+          <button id="bulk-unassign" class="btn btn-ghost small"><svg class="ic"><use href="#ic-tag"/></svg>– Label</button>
+          <button id="bulk-copy" class="btn btn-ghost small"><svg class="ic"><use href="#ic-copy"/></svg>Kopieer</button>
+          <button id="bulk-archive" class="btn btn-ghost small"><svg class="ic"><use href="#ic-archive"/></svg>Archiveer</button>
+          <button id="bulk-unarchive" class="btn btn-ghost small"><svg class="ic"><use href="#ic-restore"/></svg>Herstel</button>
+          <button id="bulk-handled" class="btn btn-ghost small"><svg class="ic"><use href="#ic-check"/></svg>Afgehandeld</button>
+          <button id="bulk-delete" class="btn btn-danger small"><svg class="ic"><use href="#ic-trash"/></svg>Verwijder</button>
+        </div>
+      </div>
+    </div>
+
+    <main id="bullet-list" class="bullet-list"></main>
+    <p id="empty-state" class="empty-state hidden">Geen bullets om te tonen.</p>
+    <footer class="appfoot">tok • v0.4.1</footer>
+  </section>
+
+  <!-- Label-beheer modal -->
+  <div id="label-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-head">
+        <h2>Labels</h2>
+        <button id="label-modal-close" class="icon-btn">✕</button>
+      </div>
+      <div id="label-list" class="label-list"></div>
+      <div class="label-add">
+        <input id="new-label-name" class="add-input" placeholder="Nieuw label…" />
+        <input id="new-label-color" type="color" class="color-input" value="#39FF14" />
+        <button id="new-label-btn" class="btn btn-primary small">Toevoegen</button>
+      </div>
+      <div id="neon-palette" class="neon-palette"></div>
+    </div>
+  </div>
+
+  <!-- Label-kiezer (popover, hergebruikt) -->
+  <div id="label-picker" class="modal-overlay hidden">
+    <div class="modal small-modal">
+      <div class="modal-head">
+        <h2 id="picker-title">Kies een label</h2>
+        <button id="picker-close" class="icon-btn">✕</button>
+      </div>
+      <div id="picker-chips" class="chip-row"></div>
+    </div>
+  </div>
+
+  <!-- Apparaat koppelen modal -->
+  <div id="device-modal" class="modal-overlay hidden">
+    <div class="modal small-modal">
+      <div class="modal-head">
+        <h2>Apparaat koppelen</h2>
+        <button id="device-modal-close" class="icon-btn">✕</button>
+      </div>
+      <p class="muted">Voer deze code in op je telefoon (tok-app) of een ander apparaat. Ongeveer 10 minuten geldig.</p>
+      <p id="device-code" style="font-size:2.6rem;font-weight:800;letter-spacing:.3em;text-align:center;color:#39FF14;margin:1rem 0;">––––––</p>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

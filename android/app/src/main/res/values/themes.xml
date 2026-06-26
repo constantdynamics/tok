@@ -1,0 +1,9 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Basistheme voor de Activity/splash; de echte UI-kleuren komen uit Compose. -->
+    <style name="Theme.Tok" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowBackground">@color/tok_bg</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

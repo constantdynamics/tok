@@ -1,0 +1,4 @@
+# Statische webpagina, geen build-stap.
+[build]
+  publish = "web"
+  command = ""

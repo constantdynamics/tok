@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">tok</string>
+    <string name="recording_channel_name">Opname</string>
+    <string name="recording_notification_title">tok luistert…</string>
+    <string name="recording_notification_text">Tik om terug te keren naar de opname.</string>
+</resources>

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>tok — Privacybeleid</title>
+  <style>
+    body { background:#0b0b12; color:#ededf5; font-family:system-ui,sans-serif;
+           line-height:1.6; max-width:720px; margin:0 auto; padding:32px 20px; }
+    h1 { color:#39ff14; } h2 { color:#00e5ff; margin-top:1.6em; }
+    a { color:#39ff14; } code { color:#ff3cac; }
+    .muted { color:#9a9ab0; font-size:.9em; }
+  </style>
+</head>
+<body>
+  <h1>Privacybeleid — tok</h1>
+  <p class="muted">Laatst bijgewerkt: 24 juni 2026</p>
+
+  <p><strong>tok</strong> is een persoonlijke app om ingesproken gedachten als gelabelde
+  bullets vast te leggen, met synchronisatie tussen je eigen apparaten.</p>
+
+  <h2>Microfoon en spraak</h2>
+  <p>De app gebruikt de microfoon om spraak naar tekst om te zetten. Dit gebeurt
+  <strong>volledig op je toestel</strong> met het offline Vosk-model. De opgenomen audio
+  wordt <strong>niet opgeslagen en niet verzonden</strong>. Alleen de herkende tekst die je
+  als bullet bewaart, wordt opgeslagen.</p>
+
+  <h2>Welke gegevens worden opgeslagen</h2>
+  <p>Je bullets en labels worden opgeslagen in een <strong>Supabase</strong>-database die door
+  de eigenaar van de app wordt beheerd, zodat ze tussen je gekoppelde apparaten kunnen
+  synchroniseren. Er worden geen accounts of persoonsgegevens zoals naam, e-mail of locatie
+  verzameld. Koppelen gebeurt via een tijdelijke koppelcode.</p>
+
+  <h2>Delen met derden</h2>
+  <p>Er worden <strong>geen</strong> gegevens verkocht of gedeeld met derden. De app bevat
+  <strong>geen advertenties</strong> en <strong>geen tracking of analytics</strong>.</p>
+
+  <h2>Beveiliging</h2>
+  <p>Verkeer met de database verloopt via versleutelde verbindingen (HTTPS). Toegang is
+  beveiligd met een koppeltoken; een apparaat kan op elk moment worden ontkoppeld of
+  ingetrokken.</p>
+
+  <h2>Je gegevens verwijderen</h2>
+  <p>Je kunt bullets en labels in de app verwijderen, en apparaten ontkoppelen. Voor het
+  volledig wissen van gegevens kun je contact opnemen via onderstaand e-mailadres.</p>
+
+  <h2>Permissies</h2>
+  <ul>
+    <li><strong>Microfoon</strong> — voor spraakherkenning (lokaal verwerkt).</li>
+    <li><strong>Internet</strong> — voor synchronisatie tussen je apparaten.</li>
+  </ul>
+
+  <h2>Contact</h2>
+  <p>Vragen over dit privacybeleid? Mail naar <code>je-email@voorbeeld.nl</code>.</p>
+  <p class="muted">(Vervang dit e-mailadres door je eigen adres.)</p>
+</body>
+</html>
