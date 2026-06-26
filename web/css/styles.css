@@ -63,6 +63,22 @@ body {
 .ic { width: 16px; height: 16px; flex: 0 0 auto;
   fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .ic-lg { width: 22px; height: 22px; }
+
+/* Regenboog-icoontjes: elk icoon een neonkleur, samen één regenboog */
+.mic-btn .ic { color: #ff3cac; }
+.mic-btn.listening .ic { color: #fff; }
+#filter-btn .ic { color: #00f0ff; }
+#labels-btn .ic { color: #39ff14; }
+#device-btn .ic { color: #ad8cff; }
+.bulk-actions .btn:nth-child(1) .ic { color: #ff2d6e; }
+.bulk-actions .btn:nth-child(2) .ic { color: #ff6ad5; }
+.bulk-actions .btn:nth-child(3) .ic { color: #ff8e00; }
+.bulk-actions .btn:nth-child(4) .ic { color: #ffd93d; }
+.bulk-actions .btn:nth-child(5) .ic { color: #39ff14; }
+.bulk-actions .btn:nth-child(6) .ic { color: #00ffa3; }
+.bulk-actions .btn:nth-child(7) .ic { color: #00f0ff; }
+.bulk-actions .btn:nth-child(8) .ic { color: #4d9dff; }
+.bulk-actions .btn:nth-child(9) .ic { color: #ad8cff; }
 .btn:hover { border-color: #4a4a6a; }
 .btn.small { padding: 6px 10px; font-size: 13px; border-radius: 8px; }
 .btn-primary { border: none; color: #0a0a12; font-weight: 700; background: linear-gradient(90deg, #00f0ff, #39ff14); }
