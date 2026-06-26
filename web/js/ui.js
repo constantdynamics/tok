@@ -32,6 +32,13 @@ function h(tag, props = {}, ...kids) {
   return e;
 }
 
+// Eigen SVG-icoontje uit de sprite (erft de knop-/tekstkleur via currentColor).
+function icon(name, cls = 'ic') {
+  const span = document.createElement('span');
+  span.innerHTML = `<svg class="${cls}" aria-hidden="true"><use href="#ic-${name}"/></svg>`;
+  return span.firstElementChild;
+}
+
 let editingId = null;     // bullet dat nu bewerkt wordt (re-render uitstellen)
 let pendingRender = false;
 let marqueeActive = false; // tijdens sleep-selectie de list niet opnieuw tekenen
@@ -162,7 +169,7 @@ function renderBullet(b) {
         h('span', { class: 'date' }, fmtDate(b.created_at)),
       ),
     ),
-    state.sort === 'manual' ? h('span', { class: 'drag-handle', title: 'Sleep om te herordenen' }, '⠿') : null,
+    state.sort === 'manual' ? h('span', { class: 'drag-handle', title: 'Sleep om te herordenen' }, icon('grip')) : null,
   );
   requestAnimationFrame(() => autoGrow(ta));
   return row;

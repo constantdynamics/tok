@@ -25,7 +25,7 @@ body {
 }
 .hidden { display: none !important; }
 .muted { color: var(--muted); font-size: 13px; }
-.screen { max-width: 760px; margin: 0 auto; padding: 16px; }
+.screen { max-width: none; margin: 0 auto; padding: 16px; }
 
 /* ---- Logo ---- */
 .logo {
@@ -56,7 +56,13 @@ body {
 
 /* ---- Buttons ---- */
 .btn { cursor: pointer; border: 1px solid var(--line); border-radius: 10px;
-  padding: 9px 14px; font-size: 14px; background: var(--surface-2); color: var(--text); transition: .15s; }
+  padding: 9px 14px; font-size: 14px; background: var(--surface-2); color: var(--text); transition: .15s;
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+/* Eigen icoontjes (neon-lijnstijl) */
+.ic-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+.ic { width: 16px; height: 16px; flex: 0 0 auto;
+  fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.ic-lg { width: 22px; height: 22px; }
 .btn:hover { border-color: #4a4a6a; }
 .btn.small { padding: 6px 10px; font-size: 13px; border-radius: 8px; }
 .btn-primary { border: none; color: #0a0a12; font-weight: 700; background: linear-gradient(90deg, #00f0ff, #39ff14); }
@@ -69,10 +75,14 @@ body {
 .select { background: var(--surface-2); color: var(--text); border: 1px solid var(--line);
   border-radius: 10px; padding: 8px 10px; font-size: 14px; }
 
+/* ---- Vaste kop (blijft in beeld bij scrollen) ---- */
+.apphead { position: sticky; top: 0; z-index: 10;
+  margin: -16px -16px 12px; padding: 8px 16px 0;
+  background: rgba(10, 10, 18, 0.86); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line); }
+
 /* ---- Topbar ---- */
-.topbar { display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  position: sticky; top: 0; z-index: 5; padding: 10px 0 12px;
-  background: linear-gradient(var(--bg), #0a0a12ee 80%, transparent); }
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 0 10px; }
 .topbar-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
 /* ---- Filter ---- */
@@ -109,7 +119,7 @@ body {
   border-radius: 10px; padding: 11px 13px; font-size: 15px; line-height: 1.45;
   font-family: inherit; resize: none; overflow-y: hidden; }
 .add-input:focus { outline: none; border-color: #39ff14; box-shadow: 0 0 12px #39ff1433; }
-.add-btn { width: 46px; font-size: 22px; flex: 0 0 auto; }
+.add-btn { width: 46px; flex: 0 0 auto; justify-content: center; }
 .mic-btn { width: 46px; font-size: 18px; display: flex; align-items: center; justify-content: center; line-height: 1; flex: 0 0 auto; }
 .mic-btn:disabled { opacity: .4; cursor: not-allowed; }
 .mic-btn.listening { border-color: var(--danger); color: #fff; background: var(--danger);
